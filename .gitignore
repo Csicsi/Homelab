@@ -1,0 +1,6 @@
+# .gitignore Homelab
+*
+!*/
+!*.md
+*_private.md
+!.gitignore
