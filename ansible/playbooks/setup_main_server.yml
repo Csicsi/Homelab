@@ -1,0 +1,120 @@
+---
+- name: Setup Main Server (ThinkPad T440)
+  hosts: homelab-main
+  become: true
+
+  tasks:
+    - name: Update all packages
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        update_cache: true
+      tags: update
+
+    - name: Install essential packages
+      ansible.builtin.dnf:
+        name:
+          - vim
+          - git
+          - curl
+          - wget
+          - htop
+          - net-tools
+          - firewalld
+        state: present
+      tags: packages
+
+    - name: Add Docker repository
+      ansible.builtin.command:
+        cmd: dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+        creates: /etc/yum.repos.d/docker-ce.repo
+      tags: docker
+
+    - name: Install Docker and Docker Compose
+      ansible.builtin.dnf:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+      tags: docker
+
+    - name: Start and enable Docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+      tags: docker
+
+    - name: Add user to docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: true
+      tags: docker
+
+    - name: Configure laptop to ignore lid close
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/logind.conf
+        regexp: "^#?HandleLidSwitch="
+        line: "HandleLidSwitch=ignore"
+        state: present
+      notify: Restart logind
+      tags: lid
+
+    - name: Configure laptop to ignore lid close when docked
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/logind.conf
+        regexp: "^#?HandleLidSwitchDocked="
+        line: "HandleLidSwitchDocked=ignore"
+        state: present
+      notify: Restart logind
+      tags: lid
+
+    - name: Ensure SSH directory exists
+      ansible.builtin.file:
+        path: "/home/{{ ansible_user }}/.ssh"
+        state: directory
+        mode: "0700"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+      tags: ssh
+
+    - name: Add SSH public key to authorized_keys
+      ansible.builtin.authorized_key:
+        user: "{{ ansible_user }}"
+        state: present
+        key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_ed25519.pub') }}"
+      tags: ssh
+
+    - name: Start and enable firewalld
+      ansible.builtin.systemd:
+        name: firewalld
+        state: started
+        enabled: true
+      tags: firewall
+
+    - name: Allow SSH through firewall
+      ansible.posix.firewalld:
+        service: ssh
+        permanent: true
+        state: enabled
+        immediate: true
+      tags: firewall
+
+    - name: Allow Docker network through firewall
+      ansible.posix.firewalld:
+        zone: trusted
+        interface: docker0
+        permanent: true
+        state: enabled
+        immediate: true
+      tags: firewall
+
+  handlers:
+    - name: Restart logind
+      ansible.builtin.systemd:
+        name: systemd-logind
+        state: restarted
