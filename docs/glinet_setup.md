@@ -58,6 +58,45 @@ ssh root@192.168.8.1
 ssh glinet-router
 ```
 
+## Python Installation
+
+**Ansible requires Python 3 on the target device.** GL.iNet routers may not have Python pre-installed.
+
+### Manual Installation
+
+```bash
+# SSH into router
+ssh root@192.168.8.1
+
+# Update package lists
+opkg update
+
+# Install Python 3
+opkg install python3
+
+# Verify installation
+python3 --version
+```
+
+### Automated Installation (Bootstrap Playbook)
+
+Use the bootstrap playbook to install Python automatically:
+
+```bash
+# From your control machine
+ansible-playbook -i ansible/inventory.yml ansible/playbooks/bootstrap_glinet.yml
+```
+
+This playbook:
+
+- Uses raw commands (doesn't require Python)
+- Checks if Python is already installed
+- Installs Python 3 via opkg if needed
+- Verifies the installation
+- Tests Ansible connectivity
+
+**Run this playbook first** before any other Ansible playbooks that use standard modules.
+
 ## Key Features
 
 - **OpenWrt-based**: Full UCI config, opkg package manager, SSH access
@@ -84,7 +123,8 @@ ssh glinet-router
 
 1. **Manual**: Complete initial setup (5 minutes, no LAN IP change needed)
 2. **Deploy SSH key**: `ssh-copy-id -i ~/.ssh/id_rsa_glinet -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa root@192.168.8.1`
-3. **Ansible**: Configure everything else (network, DHCP, firewall, packages, etc.)
+3. **Install Python**: Run bootstrap playbook: `ansible-playbook -i ansible/inventory.yml ansible/playbooks/bootstrap_glinet.yml`
+4. **Ansible**: Configure everything else (network, DHCP, firewall, packages, etc.)
 
 ### Testing Ansible Connection
 
@@ -160,6 +200,8 @@ Once connected to VPN:
 ## Next Steps
 
 1. Complete initial router setup following steps above
-2. Configure DHCP reservations (web UI or Ansible)
-3. Run Ansible playbook for additional automation: `ansible-playbook -i inventory.yml playbooks/setup_glinet_openwrt.yml`
-4. Document router MAC address in `docs/network_inventory.md`
+2. Deploy SSH key for passwordless access
+3. Run bootstrap playbook to install Python: `ansible-playbook -i ansible/inventory.yml ansible/playbooks/bootstrap_glinet.yml`
+4. Configure DHCP reservations: `ansible-playbook -i ansible/inventory.yml ansible/playbooks/setup_glinet_openwrt.yml`
+5. (Optional) Setup WireGuard VPN: `ansible-playbook -i ansible/inventory.yml ansible/playbooks/setup_glinet_wireguard.yml`
+6. Document router MAC address in `docs/network_inventory.md`
