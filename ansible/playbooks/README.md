@@ -2,6 +2,37 @@
 
 ## Available Playbooks
 
+### `bootstrap_glinet.yml`
+
+**Target**: `glinet-router` (GL.iNet SF1200)
+
+**Purpose**: Initial bootstrap - installs Python on router for Ansible to work
+
+**What it does**:
+
+- Checks if Python is already installed
+- Updates opkg package list
+- Installs Python 3 (required for Ansible modules)
+- Verifies installation and tests Ansible connectivity
+
+**Prerequisites**:
+
+- Router accessible via SSH with RSA key
+- Internet connection on router
+
+**Usage**:
+
+```bash
+# Run immediately after SSH setup
+ansible-playbook -i inventory.yml playbooks/bootstrap_glinet.yml
+```
+
+**Tags**: `bootstrap`, `test`
+
+**Note**: This playbook uses `raw` commands (doesn't require Python), so it can run before Python is installed.
+
+---
+
 ### `setup_glinet_openwrt.yml`
 
 **Target**: `glinet-router` (GL.iNet SF1200)
@@ -19,7 +50,12 @@
 
 - Router has stock GL.iNet firmware (default)
 - Root password set manually via SSH
-- SSH access enabled (System → Advanced Settings)
+- **RSA SSH key generated and deployed** (router requires RSA, not ED25519):
+  ```bash
+  ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa_glinet -C "glinet-router"
+  ssh-copy-id -i ~/.ssh/id_rsa_glinet -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa root@192.168.8.1
+  ```
+- SSH access working (test: `ansible -i inventory.yml glinet-router -m ping`)
 - **Copy vars file**: `cp ../vars/router_dhcp.yml.example ../vars/router_dhcp.yml`
 - **Update MAC addresses** in `../vars/router_dhcp.yml` with actual device MACs
 

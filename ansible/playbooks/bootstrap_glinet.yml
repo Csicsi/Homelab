@@ -1,0 +1,48 @@
+---
+- name: Bootstrap GL.iNet Router (Install Python for Ansible)
+  hosts: glinet-router
+  gather_facts: false
+
+  tasks:
+    - name: Check if Python is already installed
+      ansible.builtin.raw: which python3
+      register: python_check
+      ignore_errors: true
+      changed_when: false
+      tags: bootstrap
+
+    - name: Update opkg package list
+      ansible.builtin.raw: opkg update
+      when: python_check.rc != 0
+      tags: bootstrap
+
+    - name: Install Python 3
+      ansible.builtin.raw: opkg install python3
+      when: python_check.rc != 0
+      tags: bootstrap
+
+    - name: Verify Python installation
+      ansible.builtin.raw: python3 --version
+      register: python_version
+      changed_when: false
+      tags: bootstrap
+
+    - name: Display Python version
+      ansible.builtin.debug:
+        msg: "Python installed: {{ python_version.stdout_lines[0] }}"
+      tags: bootstrap
+
+    - name: Test Ansible module (requires Python)
+      ansible.builtin.ping:
+      tags: test
+
+    - name: Display success message
+      ansible.builtin.debug:
+        msg: |
+          Bootstrap complete! Router is ready for Ansible automation.
+
+          Next steps:
+          1. Copy vars file: cp ansible/vars/router_dhcp.yml.example ansible/vars/router_dhcp.yml
+          2. Update MAC addresses in ansible/vars/router_dhcp.yml
+          3. Run: ansible-playbook -i inventory.yml playbooks/setup_glinet_openwrt.yml
+      tags: bootstrap

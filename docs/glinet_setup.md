@@ -83,10 +83,18 @@ ssh glinet-router
 ### Workflow
 
 1. **Manual**: Complete initial setup (5 minutes, no LAN IP change needed)
-2. **Generate RSA key**: `ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa_glinet`
-3. **Deploy SSH key**: `ssh-copy-id -i ~/.ssh/id_rsa_glinet -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa root@192.168.8.1`
-4. **Configure SSH client**: Add router entry to `~/.ssh/config` (see above)
-5. **Ansible**: Configure everything else (network, DHCP, firewall, packages, etc.)
+2. **Deploy SSH key**: `ssh-copy-id -i ~/.ssh/id_rsa_glinet -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa root@192.168.8.1`
+3. **Ansible**: Configure everything else (network, DHCP, firewall, packages, etc.)
+
+### Testing Ansible Connection
+
+```bash
+# Test connectivity
+ansible -i ansible/inventory.yml glinet-router -m ping
+
+# Expected: SUCCESS with "pong" response
+# Note: SFTP/SCP warnings are normal on OpenWrt (uses dropbear, not OpenSSH)
+```
 
 See `ansible/playbooks/setup_glinet_openwrt.yml` for a complete example.
 
