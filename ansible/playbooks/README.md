@@ -40,6 +40,45 @@ ansible-playbook -i inventory.yml playbooks/setup_glinet_openwrt.yml
 
 ---
 
+### `setup_glinet_wireguard.yml`
+
+**Target**: `glinet-router` (GL.iNet SF1200)
+
+**Purpose**: Configure WireGuard VPN server on router for secure remote access to homelab
+
+**What it does**:
+
+- Installs WireGuard packages (wireguard-tools, kmod-wireguard)
+- Generates server private/public key pair
+- Creates WireGuard network interface (wg0)
+- Configures firewall zones and rules
+- Opens UDP port 51820 from WAN
+- Allows VPN clients to access LAN
+
+**Prerequisites**:
+
+- Basic router setup completed (`setup_glinet_openwrt.yml`)
+- Public IP or DDNS configured
+- UDP port 51820 forwarded on LM1200 modem
+
+**Usage**:
+
+```bash
+ansible-playbook -i inventory.yml playbooks/setup_glinet_wireguard.yml
+```
+
+**Tags**: `packages`, `wireguard`, `firewall`
+
+**Post-setup**:
+
+1. Note the server public key from playbook output
+2. Create client configs via GL.iNet web UI or manually
+3. Test VPN connection from remote location
+
+**Note**: See `docs/glinet_setup.md` for WireGuard setup details and client configuration.
+
+---
+
 ### `setup_main_server.yml`
 
 **Target**: `homelab-main` (ThinkPad T440)

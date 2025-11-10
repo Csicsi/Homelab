@@ -13,7 +13,7 @@
 
 | Device            | Model                     | RAM  | Storage                        | Expansion          | Network         | Role                                                     |
 | ----------------- | ------------------------- | ---- | ------------------------------ | ------------------ | --------------- | -------------------------------------------------------- |
-| Raspberry Pi 4 #1 | BCM2711 (Quad-core ARM)   | 4 GB | Intenso Internal 128GB M.2 SSD | Geekworm X862 V2.0 | Evodata PoE hat | Critical services: k3s node, VPN, monitoring             |
+| Raspberry Pi 4 #1 | BCM2711 (Quad-core ARM)   | 4 GB | Intenso Internal 128GB M.2 SSD | Geekworm X862 V2.0 | Evodata PoE hat | Critical services: k3s node, monitoring                  |
 | Raspberry Pi 4 #2 | BCM2711 (Quad-core ARM)   | 4 GB | Intenso Internal 128GB M.2 SSD | Geekworm X862 V2.0 | Evodata PoE hat | Critical services: k3s node, backup agent, log collector |
 | Raspberry Pi 3 B+ | BCM2837B0 (Quad-core ARM) | 1 GB | microSD                        | None               | Evodata PoE hat | Low-priority utilities: Pi-hole, experiments, GPIO       |
 
@@ -28,11 +28,11 @@ Notes:
 
 ## Networking Equipment
 
-| Device    | Model           | Role                | Notes                                                      |
-| --------- | --------------- | ------------------- | ---------------------------------------------------------- |
-| LTE Modem | Netgear LM1200  | WAN uplink          | LTE passthrough mode (optional/failover)                   |
-| Router    | GL.iNet SF1200  | LAN gateway / DHCP  | OpenWrt-based with VLAN support, SSH access for automation |
-| Switch    | Netgear GS308EP | Managed PoE+ switch | Powers all Pis; supports VLAN tagging (not currently used) |
+| Device    | Model           | Role                     | Notes                                                             |
+| --------- | --------------- | ------------------------ | ----------------------------------------------------------------- |
+| LTE Modem | Netgear LM1200  | WAN uplink               | LTE passthrough mode (optional/failover)                          |
+| Router    | GL.iNet SF1200  | LAN gateway / DHCP / VPN | OpenWrt-based with VLAN support, SSH access, WireGuard VPN server |
+| Switch    | Netgear GS308EP | Managed PoE+ switch      | Powers all Pis; supports VLAN tagging (not currently used)        |
 
 ---
 

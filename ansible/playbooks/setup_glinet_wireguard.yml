@@ -1,0 +1,145 @@
+---
+- name: Configure WireGuard VPN on GL.iNet Router
+  hosts: glinet-router
+  gather_facts: false
+
+  vars:
+    wireguard_port: 51820
+    wireguard_vpn_subnet: "10.0.10.0/24"
+    wireguard_server_ip: "10.0.10.1"
+    # Clients will get IPs from 10.0.10.2 onwards
+
+  tasks:
+    - name: Update package lists
+      ansible.builtin.command:
+        cmd: opkg update
+      tags: packages
+
+    - name: Install WireGuard packages
+      ansible.builtin.command:
+        cmd: opkg install {{ item }}
+      loop:
+        - wireguard-tools
+        - kmod-wireguard
+        - luci-proto-wireguard
+        - qrencode
+      tags: packages
+      ignore_errors: true
+
+    - name: Check if server private key exists
+      ansible.builtin.stat:
+        path: /etc/wireguard/server_private.key
+      register: server_key
+      tags: wireguard
+
+    - name: Generate server private key
+      ansible.builtin.shell:
+        cmd: wg genkey > /etc/wireguard/server_private.key
+      when: not server_key.stat.exists
+      tags: wireguard
+
+    - name: Set server key permissions
+      ansible.builtin.file:
+        path: /etc/wireguard/server_private.key
+        mode: "0600"
+      tags: wireguard
+
+    - name: Generate server public key
+      ansible.builtin.shell:
+        cmd: cat /etc/wireguard/server_private.key | wg pubkey > /etc/wireguard/server_public.key
+      tags: wireguard
+
+    - name: Read server private key
+      ansible.builtin.slurp:
+        src: /etc/wireguard/server_private.key
+      register: server_private_key
+      tags: wireguard
+
+    - name: Read server public key
+      ansible.builtin.slurp:
+        src: /etc/wireguard/server_public.key
+      register: server_public_key
+      tags: wireguard
+
+    - name: Create WireGuard interface configuration
+      ansible.builtin.shell:
+        cmd: |
+          uci set network.wg0=interface
+          uci set network.wg0.proto='wireguard'
+          uci set network.wg0.private_key='{{ server_private_key.content | b64decode | trim }}'
+          uci set network.wg0.listen_port='{{ wireguard_port }}'
+          uci add_list network.wg0.addresses='{{ wireguard_server_ip }}/24'
+      tags: wireguard
+
+    - name: Configure firewall zone for WireGuard
+      ansible.builtin.shell:
+        cmd: |
+          uci set firewall.wg=zone
+          uci set firewall.wg.name='wg'
+          uci set firewall.wg.input='ACCEPT'
+          uci set firewall.wg.output='ACCEPT'
+          uci set firewall.wg.forward='ACCEPT'
+          uci set firewall.wg.masq='1'
+          uci add_list firewall.wg.network='wg0'
+      tags: firewall
+
+    - name: Allow WireGuard to access LAN
+      ansible.builtin.shell:
+        cmd: |
+          uci set firewall.wg_lan=forwarding
+          uci set firewall.wg_lan.src='wg'
+          uci set firewall.wg_lan.dest='lan'
+      tags: firewall
+
+    - name: Allow WireGuard port from WAN
+      ansible.builtin.shell:
+        cmd: |
+          uci set firewall.wg_wan=rule
+          uci set firewall.wg_wan.name='Allow-WireGuard'
+          uci set firewall.wg_wan.src='wan'
+          uci set firewall.wg_wan.dest_port='{{ wireguard_port }}'
+          uci set firewall.wg_wan.proto='udp'
+          uci set firewall.wg_wan.target='ACCEPT'
+      tags: firewall
+
+    - name: Commit network changes
+      ansible.builtin.command:
+        cmd: uci commit network
+      tags: wireguard
+
+    - name: Commit firewall changes
+      ansible.builtin.command:
+        cmd: uci commit firewall
+      tags: firewall
+
+    - name: Reload network
+      ansible.builtin.command:
+        cmd: /etc/init.d/network reload
+      tags: wireguard
+
+    - name: Reload firewall
+      ansible.builtin.command:
+        cmd: /etc/init.d/firewall reload
+      tags: firewall
+
+    - name: Display WireGuard server info
+      ansible.builtin.debug:
+        msg: |
+          WireGuard VPN Server Configured:
+
+          Server Public Key: {{ server_public_key.content | b64decode | trim }}
+          Listen Port: {{ wireguard_port }}
+          VPN Subnet: {{ wireguard_vpn_subnet }}
+          Server IP: {{ wireguard_server_ip }}
+
+          Next Steps:
+          1. Get your public IP or set up DDNS
+          2. Ensure UDP port {{ wireguard_port }} is forwarded on LM1200
+          3. Create client configs manually or via GL.iNet web UI
+          4. Test connection from remote location
+
+          To add clients via CLI:
+            ssh root@192.168.8.1
+            cd /etc/wireguard
+            wg genkey | tee client1_private.key | wg pubkey > client1_public.key
+            # Then add peer config to network.wg0 via uci

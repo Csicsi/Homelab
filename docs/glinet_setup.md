@@ -45,6 +45,54 @@ See `ansible/playbooks/setup_glinet_openwrt.yml` for a complete example.
 
 ---
 
+## WireGuard VPN Setup
+
+The GL.iNet router serves as the WireGuard VPN server for secure remote access to the homelab.
+
+### Manual Setup (Web UI)
+
+1. **Install WireGuard**: Applications → Plug-ins → WireGuard Server (may be pre-installed)
+2. **Configure Server**: VPN → WireGuard Server
+   - Enable server
+   - Note server public key and endpoint (your public IP or DDNS)
+   - Default VPN subnet: `10.0.10.0/24` (or customize)
+3. **Add Clients**:
+   - Click "Add Client"
+   - Generate client config
+   - Download `.conf` file or scan QR code
+4. **Port Forwarding**: Ensure UDP port 51820 is forwarded on LM1200 (if behind NAT)
+
+### Ansible Setup
+
+See `ansible/playbooks/setup_glinet_wireguard.yml` for automated WireGuard configuration:
+
+- Installs WireGuard packages
+- Generates server keys
+- Configures interface and firewall
+- Creates client configs
+
+**Note**: Initial key generation should be done manually or via Ansible for security.
+
+### Client Connection
+
+```bash
+# Linux/macOS
+sudo wg-quick up /path/to/client.conf
+
+# Or use WireGuard GUI client on Windows/mobile
+```
+
+### Accessing Homelab
+
+Once connected to VPN:
+
+- Router: `http://192.168.8.1`
+- Switch: `http://192.168.8.2`
+- Servers: `ssh user@192.168.8.10` (homelab-main)
+- All homelab services accessible as if on local network
+
+---
+
 ## Security Notes
 
 - **Change default passwords**: Admin password (web UI) and root password (SSH)
