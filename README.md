@@ -32,7 +32,7 @@ This homelab serves as a practical platform for learning and demonstrating DevOp
 **Networking:**
 
 - Netgear GS308EP managed PoE+ switch
-- TP-Link router (temporary, planned upgrade to pfSense/OPNsense)
+- GL.iNet SF1200 router (OpenWrt-based, VLAN-capable)
 - Evodata PoE hats powering all Raspberry Pis
 
 **Physical Infrastructure:**
@@ -75,7 +75,7 @@ The project will introduce Kubernetes through k3s (lightweight k8s) on the Raspb
 
 ### Network Design
 
-**Current:** Flat LAN (192.168.1.0/24) with static IP assignments
+**Current:** Flat LAN (192.168.8.0/24) with static IP assignments
 
 **Future:** VLAN segmentation is a possibility but not an immediate priority. Focus remains on automation, service reliability, and monitoring before introducing network complexity.
 

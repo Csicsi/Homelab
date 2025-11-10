@@ -10,13 +10,13 @@ This document maintains a record of all network-connected devices, their MAC add
 
 | Device            | Hostname        | MAC Address         | IP Address    | Interface  | Notes             |
 | ----------------- | --------------- | ------------------- | ------------- | ---------- | ----------------- |
-| ThinkPad T440     | homelab-main    | `XX:XX:XX:XX:XX:XX` | 192.168.1.10  | eth0       | Main server       |
-| Asus X550C        | homelab-staging | `XX:XX:XX:XX:XX:XX` | 192.168.1.11  | eth0       | Staging node      |
-| Raspberry Pi 4 #1 | pi4-node1       | `XX:XX:XX:XX:XX:XX` | 192.168.1.20  | eth0       | Critical services |
-| Raspberry Pi 4 #2 | pi4-node2       | `XX:XX:XX:XX:XX:XX` | 192.168.1.21  | eth0       | Critical services |
-| Raspberry Pi 3B+  | pi3-utils       | `XX:XX:XX:XX:XX:XX` | 192.168.1.22  | eth0       | Utilities         |
-| Workstation       | workstation     | `XX:XX:XX:XX:XX:XX` | 192.168.1.100 | eth0/wlan0 | Ansible control   |
-| Switch            | netgear-gs308ep | `XX:XX:XX:XX:XX:XX` | 192.168.1.2   | mgmt       | PoE+ switch       |
+| ThinkPad T440     | homelab-main    | `XX:XX:XX:XX:XX:XX` | 192.168.8.10  | eth0       | Main server       |
+| Asus X550C        | homelab-staging | `XX:XX:XX:XX:XX:XX` | 192.168.8.11  | eth0       | Staging node      |
+| Raspberry Pi 4 #1 | pi4-node1       | `XX:XX:XX:XX:XX:XX` | 192.168.8.20  | eth0       | Critical services |
+| Raspberry Pi 4 #2 | pi4-node2       | `XX:XX:XX:XX:XX:XX` | 192.168.8.21  | eth0       | Critical services |
+| Raspberry Pi 3B+  | pi3-utils       | `XX:XX:XX:XX:XX:XX` | 192.168.8.22  | eth0       | Utilities         |
+| Workstation       | workstation     | `XX:XX:XX:XX:XX:XX` | 192.168.8.100 | eth0/wlan0 | Ansible control   |
+| Switch            | netgear-gs308ep | `XX:XX:XX:XX:XX:XX` | 192.168.8.2   | mgmt       | PoE+ switch       |
 
 ---
 
@@ -53,11 +53,11 @@ When local DNS server is configured (Pi-hole or other), add these records:
 
 | Hostname        | IP           | FQDN                  |
 | --------------- | ------------ | --------------------- |
-| homelab-main    | 192.168.1.10 | homelab-main.local    |
-| homelab-staging | 192.168.1.11 | homelab-staging.local |
-| pi4-node1       | 192.168.1.20 | pi4-node1.local       |
-| pi4-node2       | 192.168.1.21 | pi4-node2.local       |
-| pi3-utils       | 192.168.1.22 | pi3-utils.local       |
+| homelab-main    | 192.168.8.10 | homelab-main.local    |
+| homelab-staging | 192.168.8.11 | homelab-staging.local |
+| pi4-node1       | 192.168.8.20 | pi4-node1.local       |
+| pi4-node2       | 192.168.8.21 | pi4-node2.local       |
+| pi3-utils       | 192.168.8.22 | pi3-utils.local       |
 
 ---
 
@@ -85,15 +85,15 @@ Netgear GS308EP port assignments:
       |
 [Netgear LM1200 Modem]
       |
-[TP-Link Router] (192.168.1.1)
+[GL.iNet SF1200 Router] (192.168.8.1)
       |
-[Netgear GS308EP Switch] (192.168.1.2)
+[Netgear GS308EP Switch] (192.168.8.2)
       |
-      ├── [ThinkPad T440] (192.168.1.10)
-      ├── [Asus X550C] (192.168.1.11)
-      ├── [Pi4 #1] (192.168.1.20)
-      ├── [Pi4 #2] (192.168.1.21)
-      └── [Pi3] (192.168.1.22)
+      ├── [ThinkPad T440] (192.168.8.10)
+      ├── [Asus X550C] (192.168.8.11)
+      ├── [Pi4 #1] (192.168.8.20)
+      ├── [Pi4 #2] (192.168.8.21)
+      └── [Pi3] (192.168.8.22)
 
 [Workstation] Connecting over VPN
 ```
@@ -102,5 +102,5 @@ Netgear GS308EP port assignments:
 
 ## Notes
 
-- All IPs in range 192.168.1.2-192.168.1.99 are reserved for infrastructure
-- DHCP pool for guests/temporary devices: 192.168.1.100-192.168.1.200
+- All IPs in range 192.168.8.2-192.168.8.99 are reserved for infrastructure
+- DHCP pool for guests/temporary devices: 192.168.8.100-192.168.8.200

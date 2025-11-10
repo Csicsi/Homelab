@@ -1,0 +1,103 @@
+---
+- name: Configure GL.iNet SF1200 Router (OpenWrt)
+  hosts: glinet-router
+  gather_facts: false
+
+  vars_files:
+    - ../vars/router_dhcp.yml
+
+  vars:
+    # LAN configuration
+    lan_ip: "192.168.8.1"
+    lan_netmask: "255.255.255.0"
+    dhcp_start: "100"
+    dhcp_limit: "100"
+    dhcp_lease_time: "12h"
+
+  tasks:
+    - name: Set LAN IP address
+      ansible.builtin.command:
+        cmd: uci set network.lan.ipaddr='{{ lan_ip }}'
+      tags: network
+
+    - name: Set LAN netmask
+      ansible.builtin.command:
+        cmd: uci set network.lan.netmask='{{ lan_netmask }}'
+      tags: network
+
+    - name: Set DHCP start address
+      ansible.builtin.command:
+        cmd: uci set dhcp.lan.start='{{ dhcp_start }}'
+      tags: dhcp
+
+    - name: Set DHCP limit
+      ansible.builtin.command:
+        cmd: uci set dhcp.lan.limit='{{ dhcp_limit }}'
+      tags: dhcp
+
+    - name: Set DHCP lease time
+      ansible.builtin.command:
+        cmd: uci set dhcp.lan.leasetime='{{ dhcp_lease_time }}'
+      tags: dhcp
+
+    - name: Remove existing DHCP reservations
+      ansible.builtin.shell:
+        cmd: |
+          while uci -q delete dhcp.@host[0]; do :; done
+      tags: dhcp
+      ignore_errors: true
+
+    - name: Add DHCP reservations
+      ansible.builtin.shell:
+        cmd: |
+          uci add dhcp host
+          uci set dhcp.@host[-1].name='{{ item.name }}'
+          uci set dhcp.@host[-1].mac='{{ item.mac }}'
+          uci set dhcp.@host[-1].ip='{{ item.ip }}'
+      loop: "{{ dhcp_reservations }}"
+      tags: dhcp
+
+    - name: Commit network changes
+      ansible.builtin.command:
+        cmd: uci commit network
+      tags: network
+
+    - name: Commit DHCP changes
+      ansible.builtin.command:
+        cmd: uci commit dhcp
+      tags: dhcp
+
+    - name: Restart network service
+      ansible.builtin.command:
+        cmd: /etc/init.d/network restart
+      tags: network
+
+    - name: Restart dnsmasq (DHCP) service
+      ansible.builtin.command:
+        cmd: /etc/init.d/dnsmasq restart
+      tags: dhcp
+
+    - name: Update package lists
+      ansible.builtin.command:
+        cmd: opkg update
+      tags: packages
+
+    - name: Install useful packages
+      ansible.builtin.command:
+        cmd: opkg install {{ item }}
+      loop:
+        - htop
+        - tcpdump
+        - iperf3
+      tags: packages
+      ignore_errors: true
+
+    - name: Display router info
+      ansible.builtin.debug:
+        msg: |
+          GL.iNet router configured:
+          - LAN IP: {{ lan_ip }}
+          - DHCP range: {{ lan_ip | regex_replace('\.1$', '') }}.{{ dhcp_start }} - {{ lan_ip | regex_replace('\.1$', '') }}.{{ dhcp_start | int + dhcp_limit | int - 1 }}
+          - {{ dhcp_reservations | length }} DHCP reservations added
+
+          IMPORTANT: If LAN IP changed, reconnect to new IP address

@@ -28,11 +28,11 @@ Notes:
 
 ## Networking Equipment
 
-| Device    | Model             | Role                | Notes                                                      |
-| --------- | ----------------- | ------------------- | ---------------------------------------------------------- |
-| LTE Modem | Netgear LM1200    | WAN uplink          | LTE passthrough mode (optional/failover)                   |
-| Router    | TP-Link TL-WR841N | LAN gateway / DHCP  | Current temporary router; no VLAN support                  |
-| Switch    | Netgear GS308EP   | Managed PoE+ switch | Powers all Pis; supports VLAN tagging (not currently used) |
+| Device    | Model           | Role                | Notes                                                      |
+| --------- | --------------- | ------------------- | ---------------------------------------------------------- |
+| LTE Modem | Netgear LM1200  | WAN uplink          | LTE passthrough mode (optional/failover)                   |
+| Router    | GL.iNet SF1200  | LAN gateway / DHCP  | OpenWrt-based with VLAN support, SSH access for automation |
+| Switch    | Netgear GS308EP | Managed PoE+ switch | Powers all Pis; supports VLAN tagging (not currently used) |
 
 ---
 

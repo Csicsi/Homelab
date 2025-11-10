@@ -101,7 +101,7 @@ Notes:
 
 ## Network Architecture (current)
 
-- Flat LAN: `192.168.1.0/24`
+- Flat LAN: `192.168.8.0/24`
 - TP-Link router handles DHCP and routing
 - Static IP assignments for all hosts
 

@@ -7,3 +7,5 @@
 !ansible.cfg
 !*.yml
 !*.yaml
+ansible/vars/router_dhcp.yml
+!*yml.example
