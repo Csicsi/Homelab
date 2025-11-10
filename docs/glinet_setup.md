@@ -10,8 +10,53 @@ The **GL.iNet GL-SF1200 (Slate)** is a dual-band travel router that ships with G
 2. **Access web UI**: `http://192.168.8.1` (default) or `http://gl-sf1200.lan`
 3. **Set admin password** on first boot
 4. **Configure WAN**: Connect Ethernet cable from LM1200 to WAN port, verify internet connectivity
-5. **Enable SSH**: System → Advanced → Enable SSH access (default port 22)
-6. **Set root password**: SSH to router and run `passwd` to set root password for Ansible access
+5. **SSH is enabled by default** - no web UI configuration needed
+
+## SSH Access Setup
+
+### Generate Compatible SSH Key
+
+GL.iNet routers with older firmware may not accept ED25519 keys. Generate an RSA key:
+
+```bash
+# Generate RSA key for router
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa_glinet -C "glinet-router"
+
+# Copy key to router (note the RSA algorithm options)
+ssh-copy-id -i ~/.ssh/id_rsa_glinet -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa root@192.168.8.1
+```
+
+### Configure SSH Client
+
+Create/edit `~/.ssh/config`:
+
+```
+Host 192.168.8.1 glinet glinet-router
+    HostName 192.168.8.1
+    User root
+    IdentityFile ~/.ssh/id_rsa_glinet
+    HostKeyAlgorithms +ssh-rsa
+    PubkeyAcceptedKeyTypes +ssh-rsa
+```
+
+### Set Root Password
+
+```bash
+# First SSH connection (will prompt for new password)
+ssh root@192.168.8.1
+
+# Set a strong root password
+# After this, SSH key authentication will work
+```
+
+### Test Passwordless Access
+
+```bash
+# Should work without password
+ssh root@192.168.8.1
+# or
+ssh glinet-router
+```
 
 ## Key Features
 
@@ -38,8 +83,10 @@ The **GL.iNet GL-SF1200 (Slate)** is a dual-band travel router that ships with G
 ### Workflow
 
 1. **Manual**: Complete initial setup (5 minutes, no LAN IP change needed)
-2. **Deploy SSH key**: `ssh-copy-id root@192.168.8.1`
-3. **Ansible**: Configure everything else (network, DHCP, firewall, packages, etc.)
+2. **Generate RSA key**: `ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa_glinet`
+3. **Deploy SSH key**: `ssh-copy-id -i ~/.ssh/id_rsa_glinet -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa root@192.168.8.1`
+4. **Configure SSH client**: Add router entry to `~/.ssh/config` (see above)
+5. **Ansible**: Configure everything else (network, DHCP, firewall, packages, etc.)
 
 See `ansible/playbooks/setup_glinet_openwrt.yml` for a complete example.
 

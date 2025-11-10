@@ -16,11 +16,15 @@ ansible --version
 ### Generate SSH Key (if not already done)
 
 ```bash
-# Generate ED25519 key (modern, secure)
+# Generate ED25519 key (modern, secure) for most hosts
 ssh-keygen -t ed25519 -C "homelab-ansible"
+
+# For GL.iNet router, use RSA key (compatibility)
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa_glinet -C "glinet-router"
 
 # View public key
 cat ~/.ssh/id_ed25519.pub
+cat ~/.ssh/id_rsa_glinet.pub
 ```
 
 ### Configure Inventory
