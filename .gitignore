@@ -9,3 +9,8 @@
 !*.yaml
 ansible/vars/router_dhcp.yml
 !*yml.example
+!.env.example
+.env
+ansible/wireguard_clients/
+*.conf
+*.key

@@ -91,13 +91,3 @@
         - iperf3
       tags: packages
       ignore_errors: true
-
-    - name: Display router info
-      ansible.builtin.debug:
-        msg: |
-          GL.iNet router configured:
-          - LAN IP: {{ lan_ip }}
-          - DHCP range: {{ lan_ip | regex_replace('\.1$', '') }}.{{ dhcp_start }} - {{ lan_ip | regex_replace('\.1$', '') }}.{{ dhcp_start | int + dhcp_limit | int - 1 }}
-          - {{ dhcp_reservations | length }} DHCP reservations added
-
-          IMPORTANT: If LAN IP changed, reconnect to new IP address

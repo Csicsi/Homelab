@@ -1,0 +1,142 @@
+---
+- name: Configure DDNS on GL.iNet Router
+  hosts: glinet-router
+  gather_facts: false
+
+  vars:
+    # DDNS Provider Configuration
+    ddns_provider: "duckdns.org"
+
+    # DuckDNS Configuration 
+    duckdns_domain: "dcsicsak"
+    duckdns_token: "{{ lookup('env', 'DUCKDNS_TOKEN') | default('YOUR_DUCKDNS_TOKEN_HERE', true) }}"
+
+    # Update interval (in seconds)
+    ddns_check_interval: 600 # Check every 10 minutes
+    ddns_force_interval: 86400 # Force update every 24 hours even if IP hasn't changed
+
+  tasks:
+    - name: Update package lists
+      ansible.builtin.command:
+        cmd: opkg update
+      changed_when: false
+      tags: packages
+
+    - name: Install DDNS packages
+      ansible.builtin.command:
+        cmd: opkg install {{ item }}
+      loop:
+        - ddns-scripts
+        - ddns-scripts-services
+        - luci-app-ddns
+        - curl
+        - ca-bundle
+      register: ddns_install
+      changed_when: "'Installing' in ddns_install.stdout or 'Configuring' in ddns_install.stdout"
+      failed_when: false
+      tags: packages
+
+    - name: Check current DDNS configuration
+      ansible.builtin.shell:
+        cmd: uci show ddns 2>/dev/null || echo "no_config"
+      register: current_ddns_config
+      changed_when: false
+      tags: ddns
+
+    - name: Remove existing DDNS configuration
+      ansible.builtin.shell:
+        cmd: |
+          while uci -q delete ddns.@service[0]; do :; done
+          uci commit ddns
+      when: "'no_config' not in current_ddns_config.stdout"
+      tags: ddns
+
+    - name: Configure DuckDNS DDNS service
+      ansible.builtin.shell:
+        cmd: |
+          # Create new service configuration
+          uci add ddns service
+          uci set ddns.@service[-1].enabled='1'
+          uci set ddns.@service[-1].service_name='duckdns.org'
+          uci set ddns.@service[-1].lookup_host='{{ duckdns_domain }}.duckdns.org'
+          uci set ddns.@service[-1].domain='{{ duckdns_domain }}.duckdns.org'
+          uci set ddns.@service[-1].username='{{ duckdns_domain }}'
+          uci set ddns.@service[-1].password='{{ duckdns_token }}'
+          uci set ddns.@service[-1].use_ipv6='0'
+          uci set ddns.@service[-1].ip_source='network'
+          uci set ddns.@service[-1].ip_network='wan'
+          uci set ddns.@service[-1].interface='wan'
+          uci set ddns.@service[-1].check_interval='{{ ddns_check_interval }}'
+          uci set ddns.@service[-1].force_interval='{{ ddns_force_interval }}'
+          uci set ddns.@service[-1].retry_interval='60'
+          uci set ddns.@service[-1].use_syslog='2'
+          uci set ddns.@service[-1].use_https='1'
+          uci set ddns.@service[-1].cacert='/etc/ssl/certs'
+      when: ddns_provider == "duckdns.org"
+      tags: ddns
+
+    - name: Enable DDNS service
+      ansible.builtin.shell:
+        cmd: |
+          uci set ddns.global=ddns
+          uci set ddns.global.upd_privateip='0'
+      tags: ddns
+
+    - name: Commit DDNS configuration
+      ansible.builtin.command:
+        cmd: uci commit ddns
+      tags: ddns
+
+    - name: Enable DDNS init script
+      ansible.builtin.command:
+        cmd: /etc/init.d/ddns enable
+      tags: ddns
+
+    - name: Restart DDNS service
+      ansible.builtin.command:
+        cmd: /etc/init.d/ddns restart
+      tags: ddns
+
+    - name: Wait for DDNS to update (30 seconds)
+      ansible.builtin.pause:
+        seconds: 30
+      tags: ddns
+
+    - name: Check DDNS status
+      ansible.builtin.shell:
+        cmd: /etc/init.d/ddns status
+      register: ddns_status
+      changed_when: false
+      failed_when: false
+      tags: ddns
+
+    - name: Read DDNS update log
+      ansible.builtin.shell:
+        cmd: tail -20 /var/log/ddns/*.log 2>/dev/null || echo "No log file yet"
+      register: ddns_log
+      changed_when: false
+      failed_when: false
+      tags: ddns
+
+    - name: Get current public IP
+      ansible.builtin.shell:
+        cmd: curl -s ifconfig.me || curl -s icanhazip.com || echo "Unable to detect"
+      register: current_public_ip
+      changed_when: false
+      failed_when: false
+      tags: ddns
+
+    - name: Resolve DDNS hostname (DuckDNS)
+      ansible.builtin.shell:
+        cmd: nslookup {{ duckdns_domain }}.duckdns.org 2>/dev/null | grep -A1 'Name:' | tail -1 | awk '{print $2}' || echo "Not resolved yet"
+      register: ddns_resolved_ip
+      changed_when: false
+      failed_when: false
+      when: ddns_provider == "duckdns.org"
+      tags: ddns
+
+    - name: Set hostname for display
+      ansible.builtin.set_fact:
+        display_hostname: "{{ duckdns_domain }}.duckdns.org"
+      when: ddns_provider == "duckdns.org"
+      tags: ddns
