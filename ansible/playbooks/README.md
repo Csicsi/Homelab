@@ -1,6 +1,61 @@
 # Ansible Playbooks
 
-## Available Playbooks
+## Overview
+
+Playbooks are organized by target system and purpose. Router playbooks can be run individually for updates, or use the complete pipeline for initial setup.
+
+---
+
+## Router Setup Pipeline
+
+### `setup_glinet_complete.yml` ⭐ **Recommended for Initial Setup**
+
+**Target**: `glinet-router` (GL.iNet SF1200)
+
+**Purpose**: Complete router setup pipeline - orchestrates all router playbooks in correct order
+
+**What it does**:
+
+- Runs all router playbooks in sequence:
+  1. Bootstrap (Python installation)
+  2. Network/DHCP configuration
+  3. DuckDNS setup (optional, prompted)
+  4. WireGuard VPN (optional, prompted)
+- Provides interactive prompts to skip optional components
+- Shows progress and completion summary
+
+**Prerequisites**:
+
+- Router accessible via SSH with RSA key
+- `ansible/vars/router_dhcp.yml` configured with MAC addresses
+- `DUCKDNS_TOKEN` environment variable (if using DDNS)
+- Edit WireGuard endpoint in playbook vars (if using VPN)
+
+**Usage**:
+
+```bash
+# Set DuckDNS token if using dynamic DNS
+export DUCKDNS_TOKEN="your-token-from-duckdns-org"
+
+# Run complete pipeline
+ansible-playbook -i inventory.yml playbooks/setup_glinet_complete.yml
+
+# Or run without prompts (all optional features enabled)
+ansible-playbook -i inventory.yml playbooks/setup_glinet_complete.yml -e "setup_ddns=yes" -e "setup_vpn=yes"
+```
+
+**What gets configured**:
+
+- ✅ Python3 for Ansible
+- ✅ Static DHCP reservations for all homelab devices
+- ✅ DuckDNS for dynamic public IP (if enabled)
+- ✅ WireGuard VPN server with client configs (if enabled)
+
+**Note**: Individual playbooks can still be run separately for updates/maintenance.
+
+---
+
+## Individual Router Playbooks
 
 ### `bootstrap_glinet.yml`
 
@@ -72,7 +127,51 @@ ansible-playbook -i inventory.yml playbooks/setup_glinet_openwrt.yml
 
 **Tags**: `network`, `dhcp`, `packages`
 
-**Note**: See `docs/glinet_setup.md` for initial router setup steps.
+**Note**: See `docs/network_setup.md` for initial router setup steps and `docs/ansible.md` for SSH configuration.
+
+---
+
+### `setup_glinet_ddns.yml`
+
+**Target**: `glinet-router` (GL.iNet SF1200)
+
+**Purpose**: Configure DuckDNS dynamic DNS service for remote access with changing public IP
+
+**What it does**:
+
+- Installs DDNS packages (ddns-scripts, ddns-scripts-services, luci-app-ddns)
+- Configures DuckDNS service with domain and token
+- Sets update intervals (checks every 10 minutes, forces every 24 hours)
+- Enables and starts DDNS service
+- Verifies DNS resolution matches current public IP
+
+**Prerequisites**:
+
+- Router has internet connection
+- DuckDNS account and token: https://www.duckdns.org
+- Environment variable `DUCKDNS_TOKEN` set or edit playbook vars
+
+**Usage**:
+
+```bash
+# Set your DuckDNS token
+export DUCKDNS_TOKEN="your-token-from-duckdns-org"
+
+# Run playbook
+ansible-playbook -i inventory.yml playbooks/setup_glinet_ddns.yml
+```
+
+**Tags**: `packages`, `ddns`
+
+**Configuration**:
+
+Edit playbook vars to customize:
+
+- `duckdns_domain`: Your subdomain (e.g., "yourname" for yourname.duckdns.org)
+- `ddns_check_interval`: How often to check for IP changes (default 600s = 10min)
+- `ddns_force_interval`: Force update even if IP unchanged (default 86400s = 24h)
+
+**Note**: Required for WireGuard VPN if you don't have a static public IP. The VPN endpoint will be `yourdomain.duckdns.org`.
 
 ---
 
@@ -111,7 +210,7 @@ ansible-playbook -i inventory.yml playbooks/setup_glinet_wireguard.yml
 2. Create client configs via GL.iNet web UI or manually
 3. Test VPN connection from remote location
 
-**Note**: See `docs/glinet_setup.md` for WireGuard setup details and client configuration.
+**Note**: See `docs/network_setup.md` for WireGuard setup details and client configuration.
 
 ---
 

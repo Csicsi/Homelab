@@ -30,26 +30,70 @@
 
 ### 2. GL.iNet SF1200 Router Setup
 
-**For detailed setup instructions, see `docs/glinet_setup.md`**
+**Step-by-step workflow:**
 
-Access router web interface:
+1. **Initial setup**: Access `http://192.168.8.1` and set admin password
 
-- Stock firmware: `http://192.168.8.1` or `http://gl-sf1200.lan`
+2. **Generate SSH key** (RSA required for OpenWrt):
 
-**Basic Settings**:
+```bash
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa_glinet -C "glinet-router"
+```
 
-- Set admin password
-- Configure WiFi SSID and password (or disable WiFi if using wired-only)
-- Verify WAN connection is active (should get IP from LM1200)
-- Enable SSH access (System → Advanced Settings)
+3. **Configure SSH** (`~/.ssh/config`):
 
-**DHCP Settings** (Network → LAN → DHCP Server):
+```
+Host 192.168.8.1 glinet glinet-router
+    HostName 192.168.8.1
+    User root
+    IdentityFile ~/.ssh/id_rsa_glinet
+    HostKeyAlgorithms +ssh-rsa
+    PubkeyAcceptedKeyTypes +ssh-rsa
+```
 
-- Set DHCP range: `192.168.8.100 - 192.168.8.200` (leaves `.2-.99` for infrastructure)
-- Gateway: `192.168.8.1` (router itself - default)
-- DNS: Use router's DNS or public DNS (1.1.1.1, 8.8.8.8)
+4. **Deploy SSH key**:
 
-**Static IP Reservations** (Network → LAN → DHCP Reservations or use Ansible - see `ansible/playbooks/setup_glinet_openwrt.yml`):
+```bash
+ssh-copy-id -i ~/.ssh/id_rsa_glinet -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa root@192.168.8.1
+```
+
+5. **Run Ansible setup** (complete pipeline):
+
+```bash
+cd ~/Homelab/ansible
+cp vars/router_dhcp.yml.example vars/router_dhcp.yml
+vim vars/router_dhcp.yml  # Add real MAC addresses
+export DUCKDNS_TOKEN="your_token_here"  # Optional, for DDNS
+ansible-playbook -i inventory.yml playbooks/setup_glinet_complete.yml
+```
+
+6. **Add VPN client(s)**:
+   - Edit `playbooks/setup_glinet_wireguard.yml` and add your laptop under `wireguard_clients:`:
+     ```yaml
+     wireguard_clients:
+       - name: laptop
+         ip: 10.0.10.2
+         description: "Lenovo New"
+     ```
+   - Run the playbook:
+     ```bash
+     ansible-playbook -i inventory.yml playbooks/setup_glinet_wireguard.yml
+     ```
+   - Get the generated config file from `ansible/wireguard_clients/laptop.conf` and import it into the WireGuard app on your laptop.
+   - Test VPN connection:
+     ```bash
+     sudo wg-quick up laptop.conf
+     ping 192.168.8.1  # Should reach router via VPN
+     ```
+
+**What gets configured:**
+
+- Python3 installation
+- Network and DHCP with static reservations
+- DuckDNS
+- WireGuard VPN
+
+**Static IP Reservations** (edit `ansible/vars/router_dhcp.yml`):
 | Device | MAC Address | Reserved IP |
 |-------------------|---------------------|---------------|
 | Netgear GS308EP | (from switch label) | 192.168.8.2 |
@@ -83,43 +127,3 @@ Access router web interface:
 2. Boot each device
 3. Verify they receive correct static IPs from DHCP reservations
 4. Test connectivity: `ping 192.168.8.1` (router), `ping 8.8.8.8` (internet)
-
-## Verification Checklist
-
-- [ ] LM1200 has LTE connection (check lights)
-- [ ] GL.iNet router has WAN IP from modem
-- [ ] Router accessible at 192.168.8.1 (default)
-- [ ] SSH enabled on router
-- [ ] DHCP reservations configured for all devices
-- [ ] Switch accessible at 192.168.8.2
-- [ ] PoE enabled on Pi ports (4, 5, 6)
-- [ ] All devices get correct static IPs
-- [ ] All devices can ping router (192.168.8.1)
-- [ ] All devices can reach internet
-- [ ] Update `docs/network_inventory.md` with real MAC addresses
-
-## Finding MAC Addresses
-
-**On Linux devices** (servers/Pis after initial boot):
-
-```bash
-ip link show
-# Look for "link/ether XX:XX:XX:XX:XX:XX"
-```
-
-**From GL.iNet router**:
-
-- Go to Clients page in web UI
-- View connected devices with MAC addresses
-- Or via SSH: `cat /tmp/dhcp.leases`
-
-## Troubleshooting
-
-**No internet**: Check LM1200 LTE connection, verify GL.iNet WAN settings
-
-**Device not getting static IP**: Check MAC address matches DHCP reservation exactly
-
-**Can't access router**: Try default IP `192.168.8.1` if LAN IP not changed yet, or factory reset
-
-**Can't access switch**: Verify switch got 192.168.8.2 from router, try factory reset if needed
-

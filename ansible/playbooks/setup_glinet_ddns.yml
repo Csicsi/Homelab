@@ -4,16 +4,13 @@
   gather_facts: false
 
   vars:
-    # DDNS Provider Configuration
     ddns_provider: "duckdns.org"
 
-    # DuckDNS Configuration 
     duckdns_domain: "dcsicsak"
     duckdns_token: "{{ lookup('env', 'DUCKDNS_TOKEN') | default('YOUR_DUCKDNS_TOKEN_HERE', true) }}"
 
-    # Update interval (in seconds)
-    ddns_check_interval: 600 # Check every 10 minutes
-    ddns_force_interval: 86400 # Force update every 24 hours even if IP hasn't changed
+    ddns_check_interval: 600
+    ddns_force_interval: 86400
 
   tasks:
     - name: Update package lists

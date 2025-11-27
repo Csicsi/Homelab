@@ -1,0 +1,87 @@
+---
+- name: Disable WiFi (wlan) on router
+  ansible.builtin.shell:
+    cmd: |
+      uci set wireless.@wifi-device[0].disabled='1'
+      uci commit wireless
+      /etc/init.d/network reload
+  tags: disable_wifi
+
+- name: Create WireGuard interface configuration
+  ansible.builtin.shell:
+    cmd: |
+      uci set network.wg0=interface
+      uci set network.wg0.proto='wireguard'
+      uci set network.wg0.private_key='{{ server_private_key.content | b64decode | trim }}'
+      uci set network.wg0.listen_port='{{ wireguard_port }}'
+      uci add_list network.wg0.addresses='{{ wireguard_server_ip }}/24'
+  tags: wireguard
+
+- name: Configure firewall zone for WireGuard
+  ansible.builtin.shell:
+    cmd: |
+      uci set firewall.wg=zone
+      uci set firewall.wg.name='wg'
+      uci set firewall.wg.input='ACCEPT'
+      uci set firewall.wg.output='ACCEPT'
+      uci set firewall.wg.forward='ACCEPT'
+      uci set firewall.wg.masq='1'
+      uci add_list firewall.wg.network='wg0'
+  tags: firewall
+
+- name: Allow WireGuard to access LAN
+  ansible.builtin.shell:
+    cmd: |
+      uci set firewall.wg_lan=forwarding
+      uci set firewall.wg_lan.src='wg'
+      uci set firewall.wg_lan.dest='lan'
+  tags: firewall
+
+- name: Allow WireGuard port from WAN
+  ansible.builtin.shell:
+    cmd: |
+      uci set firewall.wg_wan=rule
+      uci set firewall.wg_wan.name='Allow-WireGuard'
+      uci set firewall.wg_wan.src='wan'
+      uci set firewall.wg_wan.dest_port='{{ wireguard_port }}'
+      uci set firewall.wg_wan.proto='udp'
+  tags: firewall
+
+- name: Remove existing WireGuard port forward (if any)
+  ansible.builtin.shell:
+    cmd: |
+      while uci -q delete firewall.@redirect[0]; do :; done
+  tags: firewall
+  ignore_errors: true
+
+- name: Add WireGuard port forwarding (DNAT redirect)
+  ansible.builtin.shell:
+    cmd: |
+      uci add firewall redirect
+      uci set firewall.@redirect[-1].target='DNAT'
+      uci set firewall.@redirect[-1].name='vpn'
+      uci set firewall.@redirect[-1].src='wan'
+      uci set firewall.@redirect[-1].dest='lan'
+      uci set firewall.@redirect[-1].proto='udp'
+      uci set firewall.@redirect[-1].src_dport='{{ wireguard_port }}'
+      uci set firewall.@redirect[-1].dest_ip='192.168.8.1'
+      uci set firewall.@redirect[-1].dest_port='{{ wireguard_port }}'
+      uci set firewall.@redirect[-1].enabled='1'
+  tags: firewall
+
+- name: Commit network changes
+  ansible.builtin.command:
+    cmd: uci commit network
+  tags: wireguard
+
+- name: Commit firewall changes
+  ansible.builtin.command:
+    cmd: uci commit firewall
+  tags: firewall
+
+- name: Reload network and firewall
+  ansible.builtin.shell:
+    cmd: |
+      /etc/init.d/network reload
+      /etc/init.d/firewall reload
+  tags: wireguard

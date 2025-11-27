@@ -1,0 +1,87 @@
+---
+# Complete GL.iNet Router Setup Pipeline
+# This orchestrates all router playbooks in the correct order
+# Individual playbooks can still be run separately for updates
+
+- name: Complete GL.iNet Router Setup Pipeline
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  vars_prompt:
+    - name: setup_ddns
+      prompt: "Configure DuckDNS dynamic DNS? (yes/no)"
+      default: "yes"
+      private: false
+
+    - name: setup_vpn
+      prompt: "Setup WireGuard VPN server? (yes/no)"
+      default: "yes"
+      private: false
+
+  tasks:
+    - name: Display setup pipeline
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "GL.iNet Router Complete Setup Pipeline"
+          - "=========================================="
+          - ""
+          - "This will run the following playbooks:"
+          - "  1. bootstrap_glinet.yml (Install Python)"
+          - "  2. setup_glinet_openwrt.yml (Network/DHCP)"
+          - "  3. setup_glinet_ddns.yml {{ '(SKIPPED)' if setup_ddns | lower == 'no' else '(DuckDNS)' }}"
+          - "  4. setup_glinet_wireguard.yml {{ '(SKIPPED)' if setup_vpn | lower == 'no' else '(VPN Server)' }}"
+          - ""
+          - "Prerequisites:"
+          - "  - Router at 192.168.8.1 with SSH access"
+          - "  - RSA SSH key deployed (see docs/ansible.md)"
+          - "  - ansible/vars/router_dhcp.yml configured"
+          - "  - DUCKDNS_TOKEN env var set (if using DDNS)"
+          - "  - WG_ENDPOINT configured in playbook (if using VPN)"
+          - ""
+
+    - name: Confirm to continue
+      ansible.builtin.pause:
+        prompt: "Press ENTER to continue or Ctrl+C to abort"
+
+- name: Step 1 - Bootstrap Router (Install Python)
+  ansible.builtin.import_playbook: bootstrap_glinet.yml
+
+- name: Step 2 - Configure Network and DHCP
+  ansible.builtin.import_playbook: setup_glinet_openwrt.yml
+
+- name: Step 3 - Configure Dynamic DNS (Optional)
+  ansible.builtin.import_playbook: setup_glinet_ddns.yml
+  when: hostvars['localhost']['setup_ddns'] | lower != 'no'
+
+- name: Step 4 - Setup WireGuard VPN (Optional)
+  ansible.builtin.import_playbook: setup_glinet_wireguard.yml
+  when: hostvars['localhost']['setup_vpn'] | lower != 'no'
+
+- name: Pipeline Complete
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  tasks:
+    - name: Display completion summary
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "=========================================="
+          - "Router Setup Pipeline Complete!"
+          - "=========================================="
+          - ""
+          - "What was configured:"
+          - "  ✓ Python3 installed"
+          - "  ✓ Network and DHCP configured"
+          - "  {{ '✓ DuckDNS configured' if hostvars['localhost']['setup_ddns'] | lower != 'no' else '✗ DuckDNS skipped' }}"
+          - "  {{ '✓ WireGuard VPN configured' if hostvars['localhost']['setup_vpn'] | lower != 'no' else '✗ WireGuard skipped' }}"
+          - ""
+          - "Next steps:"
+          - "  - Verify DHCP reservations: cat /tmp/dhcp.leases"
+          - "  {{ '- Check DDNS status: /etc/init.d/ddns status' if hostvars['localhost']['setup_ddns'] | lower != 'no' else '' }}"
+          - "  {{ '- WireGuard configs saved to: ansible/wireguard_clients/' if hostvars['localhost']['setup_vpn'] | lower != 'no' else '' }}"
+          - "  - Update docs/network_inventory.md with MAC addresses"
+          - ""
