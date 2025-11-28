@@ -11,6 +11,12 @@
         update_cache: true
       tags: update
 
+    - name: Install EPEL repository
+      ansible.builtin.dnf:
+        name: epel-release
+        state: present
+      tags: packages
+
     - name: Install essential packages
       ansible.builtin.dnf:
         name:
@@ -18,9 +24,9 @@
           - git
           - curl
           - wget
-          - htop
           - net-tools
           - firewalld
+          - htop
         state: present
       tags: packages
 
@@ -55,39 +61,17 @@
         append: true
       tags: docker
 
-    - name: Configure laptop to ignore lid close
-      ansible.builtin.lineinfile:
+    - name: Ensure logind.conf disables lid suspend
+      ansible.builtin.blockinfile:
         path: /etc/systemd/logind.conf
-        regexp: "^#?HandleLidSwitch="
-        line: "HandleLidSwitch=ignore"
-        state: present
+        block: |
+          [Login]
+          HandleLidSwitch=ignore
+          HandleLidSwitchDocked=ignore
+        create: yes
+        mode: "0644"
       notify: Restart logind
       tags: lid
-
-    - name: Configure laptop to ignore lid close when docked
-      ansible.builtin.lineinfile:
-        path: /etc/systemd/logind.conf
-        regexp: "^#?HandleLidSwitchDocked="
-        line: "HandleLidSwitchDocked=ignore"
-        state: present
-      notify: Restart logind
-      tags: lid
-
-    - name: Ensure SSH directory exists
-      ansible.builtin.file:
-        path: "/home/{{ ansible_user }}/.ssh"
-        state: directory
-        mode: "0700"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-      tags: ssh
-
-    - name: Add SSH public key to authorized_keys
-      ansible.builtin.authorized_key:
-        user: "{{ ansible_user }}"
-        state: present
-        key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_ed25519.pub') }}"
-      tags: ssh
 
     - name: Start and enable firewalld
       ansible.builtin.systemd:
