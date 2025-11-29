@@ -27,8 +27,16 @@
           - net-tools
           - firewalld
           - htop
+          - python3-requests
+          - openssl
+          - unzip
+          - tar
         state: present
       tags: packages
+
+    # ---------------------------------------------------------------
+    # Docker
+    # ---------------------------------------------------------------
 
     - name: Add Docker repository
       ansible.builtin.command:
@@ -47,20 +55,79 @@
         state: present
       tags: docker
 
-    - name: Start and enable Docker service
+    - name: Enable and start Docker
       ansible.builtin.systemd:
         name: docker
         state: started
         enabled: true
       tags: docker
 
-    - name: Add user to docker group
+    - name: Add current user and Jenkins to docker group
       ansible.builtin.user:
-        name: "{{ ansible_user }}"
+        name: "{{ item }}"
         groups: docker
         append: true
+      loop:
+        - "{{ ansible_user }}"
+        - jenkins
       tags: docker
 
+    - name: Allow Jenkins to access docker.sock
+      ansible.builtin.file:
+        path: /var/run/docker.sock
+        mode: "0666"
+      tags: docker
+
+    # ---------------------------------------------------------------
+    # Optional but recommended: Nginx reverse proxy
+    # ---------------------------------------------------------------
+    - name: Install Nginx
+      ansible.builtin.dnf:
+        name: nginx
+        state: present
+      tags: nginx
+
+    - name: Enable and start Nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: started
+        enabled: true
+      tags: nginx
+
+    # ---------------------------------------------------------------
+    # Firewall
+    # ---------------------------------------------------------------
+    - name: Start and enable firewalld
+      ansible.builtin.systemd:
+        name: firewalld
+        state: started
+        enabled: true
+      tags: firewall
+
+    - name: Allow standard services
+      ansible.posix.firewalld:
+        service: "{{ item }}"
+        permanent: true
+        state: enabled
+        immediate: true
+      loop:
+        - ssh
+        - http
+        - https
+      tags: firewall
+
+    - name: Allow Docker networks
+      ansible.posix.firewalld:
+        zone: trusted
+        interface: docker0
+        permanent: true
+        state: enabled
+        immediate: true
+      tags: firewall
+
+    # ---------------------------------------------------------------
+    # Prevent lid-sleep on laptop
+    # ---------------------------------------------------------------
     - name: Ensure logind.conf disables lid suspend
       ansible.builtin.blockinfile:
         path: /etc/systemd/logind.conf
@@ -72,30 +139,6 @@
         mode: "0644"
       notify: Restart logind
       tags: lid
-
-    - name: Start and enable firewalld
-      ansible.builtin.systemd:
-        name: firewalld
-        state: started
-        enabled: true
-      tags: firewall
-
-    - name: Allow SSH through firewall
-      ansible.posix.firewalld:
-        service: ssh
-        permanent: true
-        state: enabled
-        immediate: true
-      tags: firewall
-
-    - name: Allow Docker network through firewall
-      ansible.posix.firewalld:
-        zone: trusted
-        interface: docker0
-        permanent: true
-        state: enabled
-        immediate: true
-      tags: firewall
 
   handlers:
     - name: Restart logind

@@ -214,6 +214,8 @@ ansible-playbook -i inventory.yml playbooks/setup_glinet_wireguard.yml
 
 ---
 
+## Homelab Main Server Playbooks
+
 ### `setup_main_server.yml`
 
 **Target**: `homelab-main` (ThinkPad T440)
@@ -235,6 +237,42 @@ ansible-playbook -i inventory.yml playbooks/setup_main_server.yml --ask-become-p
 ```
 
 **Tags**: `update`, `packages`, `docker`, `lid`, `ssh`, `firewall`
+
+---
+
+### `setup_main_server_jenkins.yml`
+
+**Target**: `homelab-main` (ThinkPad T440)
+
+**Purpose**: Deploy Jenkins CI/CD server in Docker, open firewall port, and prepare persistent storage
+
+**What it does**:
+
+- Pulls Jenkins Docker image (`jenkins/jenkins:lts`)
+- Creates persistent Jenkins data directory (`/srv/jenkins`)
+- Runs Jenkins container on port 9080 (mapped to 8080 in container)
+- Sets restart policy to always
+- Opens port 9080/tcp in firewalld
+
+**Prerequisites**:
+
+- Docker and firewalld installed and running (see `setup_main_server.yml`)
+- Python3-requests installed on target host (included in essentials)
+- Ansible `community.docker` collection installed on control node (`ansible-galaxy collection install community.docker`)
+
+**Usage**:
+
+```bash
+ansible-playbook -i inventory.yml playbooks/setup_main_server_jenkins.yml --ask-become-pass
+```
+
+**Tags**: `jenkins`, `firewall`
+
+**Notes**:
+
+- Jenkins web UI will be available at `http://<server-ip>:9080`
+- Persistent data stored in `/srv/jenkins` on host
+- For initial admin password, check `/srv/jenkins/secrets/initialAdminPassword` inside the container
 
 ---
 
