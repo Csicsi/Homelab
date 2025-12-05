@@ -214,6 +214,56 @@ ansible-playbook -i inventory.yml playbooks/setup_glinet_wireguard.yml
 
 ---
 
+## Raspberry Pi Playbooks
+
+### `setup_pis.yml`
+
+**Target**: `pis` (all Raspberry Pis - pi4-node1, pi4-node2, pi3-utils)
+
+**Purpose**: Post-NVMe migration setup - essential packages, Docker, firewall, k3s preparation
+
+**What it does**:
+
+- Updates all system packages
+- Installs essential tools (vim, git, htop, python3, etc.)
+- Verifies root filesystem is on NVMe (/dev/sda)
+- Installs Docker and Docker Compose
+- Enables memory cgroup for k3s support
+- Configures UFW firewall (SSH, k3s ports for Pi4s)
+- Performance tuning (swap, inotify limits)
+- SSH hardening (disable password auth, disable root login)
+- Sets timezone to America/New_York
+
+**Prerequisites**:
+
+- Pis migrated to NVMe using `docs/pi_nvme_migration.md` process
+- SSH key deployed: `ssh-copy-id -i ~/.ssh/id_ed25519.pub dcsicsak@<pi-ip>`
+- Pis accessible via SSH (test: `ansible -i inventory.yml pis -m ping`)
+
+**Usage**:
+
+```bash
+# Test connectivity first
+ansible -i inventory.yml pis -m ping
+
+# Run complete setup
+ansible-playbook -i inventory.yml playbooks/setup_pis.yml --ask-become-pass
+
+# Run specific sections
+ansible-playbook -i inventory.yml playbooks/setup_pis.yml --tags docker --ask-become-pass
+ansible-playbook -i inventory.yml playbooks/setup_pis.yml --tags firewall --ask-become-pass
+```
+
+**Tags**: `update`, `packages`, `system`, `verify`, `docker`, `firewall`, `performance`, `ssh`
+
+**Post-setup**:
+
+- Log out and back in for docker group changes to take effect
+- Verify NVMe boot: `lsblk -f` should show root (/) on sda2
+- Next step: Install k3s cluster on Pi4 nodes
+
+---
+
 ## Homelab Main Server Playbooks
 
 ### `setup_main_server.yml`

@@ -29,25 +29,36 @@ ansible/
 
 ### 1. Install Ansible
 
+Ubuntu/Debian:
+
 ```bash
-# Ubuntu/Debian
 sudo apt update
 sudo apt install ansible -y
+```
 
-# Verify
+Verify installation:
+
+```bash
 ansible --version
 ```
 
 ### 2. Generate SSH Keys
 
+For Linux hosts (servers, Pis) - use ED25519:
+
 ```bash
-# For Linux hosts (servers, Pis) - use ED25519
 ssh-keygen -t ed25519 -C "homelab-ansible"
+```
 
-# For GL.iNet router - use RSA (compatibility requirement)
+For GL.iNet router - use RSA (compatibility requirement):
+
+```bash
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa_glinet -C "glinet-router"
+```
 
-# View public keys
+View public keys:
+
+```bash
 cat ~/.ssh/id_ed25519.pub
 cat ~/.ssh/id_rsa_glinet.pub
 ```
@@ -67,14 +78,21 @@ Host 192.168.8.1 glinet glinet-router
 
 ### 4. Deploy SSH Keys
 
+Linux hosts:
+
 ```bash
-# Linux hosts
 ssh-copy-id -i ~/.ssh/id_ed25519.pub user@host_ip
+```
 
-# Router (note the algorithm options)
+Router (note the algorithm options):
+
+```bash
 ssh-copy-id -i ~/.ssh/id_rsa_glinet -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedKeyTypes=+ssh-rsa root@192.168.8.1
+```
 
-# Test passwordless access
+Test passwordless access:
+
+```bash
 ssh user@host_ip
 ssh glinet-router
 ```
@@ -93,17 +111,27 @@ Edit `ansible/inventory.yml` and confirm:
 
 ### Basic Workflow
 
+Always run from ansible/ directory:
+
 ```bash
-# Always run from ansible/ directory
 cd ~/Homelab/ansible
+```
 
-# Test connectivity
+Test connectivity:
+
+```bash
 ansible -i inventory.yml <group_or_host> -m ping
+```
 
-# Run a playbook
+Run a playbook:
+
+```bash
 ansible-playbook -i inventory.yml playbooks/<playbook>.yml
+```
 
-# With sudo password prompt (required for servers/pis)
+With sudo password prompt (required for servers/pis):
+
+```bash
 ansible-playbook -i inventory.yml playbooks/<playbook>.yml --ask-become-pass
 ```
 
@@ -111,31 +139,48 @@ ansible-playbook -i inventory.yml playbooks/<playbook>.yml --ask-become-pass
 
 **IMPORTANT:** Router requires Python installation before other playbooks can run.
 
+Bootstrap - install Python on router (uses raw commands):
+
 ```bash
-# 1. Bootstrap - install Python on router (uses raw commands)
 ansible-playbook -i inventory.yml playbooks/bootstrap_glinet.yml
+```
 
-# 2. Copy and edit DHCP vars file
+Copy and edit DHCP vars file:
+
+```bash
 cp vars/router_dhcp.yml.example vars/router_dhcp.yml
-vim vars/router_dhcp.yml  # Add real MAC addresses
+vim vars/router_dhcp.yml
+```
 
-# 3. Configure router network and DHCP
+Add real MAC addresses to the vars file, then configure router network and DHCP:
+
+```bash
 ansible-playbook -i inventory.yml playbooks/setup_glinet_openwrt.yml
 ```
 
 ### Common Options
 
+Dry run (show what would change):
+
 ```bash
-# Dry run (show what would change)
 ansible-playbook -i inventory.yml playbooks/<playbook>.yml --check
+```
 
-# Run specific tags only
+Run specific tags only:
+
+```bash
 ansible-playbook -i inventory.yml playbooks/<playbook>.yml --tags docker,firewall
+```
 
-# Limit to specific hosts
+Limit to specific hosts:
+
+```bash
 ansible-playbook -i inventory.yml playbooks/<playbook>.yml --limit homelab-main
+```
 
-# Verbose output (add more v's for detail)
+Verbose output (add more v's for detail):
+
+```bash
 ansible-playbook -i inventory.yml playbooks/<playbook>.yml -vvv
 ```
 
@@ -270,11 +315,15 @@ See `ansible/playbooks/README.md` for detailed documentation of each playbook.
 
 1. **Get MAC address**:
 
-   ```bash
-   # Linux
-   ip link show
+   Linux:
 
-   # Raspberry Pi
+   ```bash
+   ip link show
+   ```
+
+   Raspberry Pi:
+
+   ```bash
    cat /sys/class/net/eth0/address
    ```
 
@@ -304,6 +353,7 @@ See `ansible/playbooks/README.md` for detailed documentation of each playbook.
    ```
 
 5. **Deploy SSH key and test**:
+
    ```bash
    ssh-copy-id -i ~/.ssh/id_ed25519.pub username@192.168.8.XX
    ansible -i inventory.yml new-host -m ping

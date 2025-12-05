@@ -62,29 +62,50 @@ ssh-copy-id -i ~/.ssh/id_rsa_glinet -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAccep
 ```bash
 cd ~/Homelab/ansible
 cp vars/router_dhcp.yml.example vars/router_dhcp.yml
-vim vars/router_dhcp.yml  # Add real MAC addresses
-export DUCKDNS_TOKEN="your_token_here"  # Optional, for DDNS
+vim vars/router_dhcp.yml
+```
+
+Add real MAC addresses to the vars file.
+
+Optional - set DuckDNS token for DDNS:
+
+```bash
+export DUCKDNS_TOKEN="your_token_here"
+```
+
+Run the complete setup:
+
+```bash
 ansible-playbook -i inventory.yml playbooks/setup_glinet_complete.yml
 ```
 
 6. **Add VPN client(s)**:
-   - Edit `playbooks/setup_glinet_wireguard.yml` and add your laptop under `wireguard_clients:`:
-     ```yaml
-     wireguard_clients:
-       - name: laptop
-         ip: 10.0.10.2
-         description: "Lenovo New"
-     ```
-   - Run the playbook:
-     ```bash
-     ansible-playbook -i inventory.yml playbooks/setup_glinet_wireguard.yml
-     ```
-   - Get the generated config file from `ansible/wireguard_clients/laptop.conf` and import it into the WireGuard app on your laptop.
-   - Test VPN connection:
-     ```bash
-     sudo wg-quick up laptop.conf
-     ping 192.168.8.1  # Should reach router via VPN
-     ```
+
+   Edit `playbooks/setup_glinet_wireguard.yml` and add your laptop under `wireguard_clients:`:
+
+   ```yaml
+   wireguard_clients:
+     - name: laptop
+       ip: 10.0.10.2
+       description: "Lenovo New"
+   ```
+
+   Run the playbook:
+
+   ```bash
+   ansible-playbook -i inventory.yml playbooks/setup_glinet_wireguard.yml
+   ```
+
+   Get the generated config file from `ansible/wireguard_clients/laptop.conf` and import it into the WireGuard app on your laptop.
+
+   Test VPN connection:
+
+   ```bash
+   sudo wg-quick up laptop.conf
+   ping 192.168.8.1
+   ```
+
+   The ping should reach the router via VPN.
 
 **What gets configured:**
 
@@ -126,4 +147,9 @@ ansible-playbook -i inventory.yml playbooks/setup_glinet_complete.yml
 1. Connect servers and Pis to switch via Ethernet
 2. Boot each device
 3. Verify they receive correct static IPs from DHCP reservations
-4. Test connectivity: `ping 192.168.8.1` (router), `ping 8.8.8.8` (internet)
+4. Test connectivity:
+
+```bash
+ping 192.168.8.1
+ping 8.8.8.8
+```
