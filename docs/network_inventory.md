@@ -12,6 +12,7 @@ This document maintains a record of all network-connected devices, their MAC add
 | ----------------- | --------------- | ------------------- | ------------- | ---------- | ----------------- |
 | ThinkPad T440     | homelab-main    | `XX:XX:XX:XX:XX:XX` | 192.168.8.10  | eth0       | Main server       |
 | Asus X550C        | homelab-staging | `XX:XX:XX:XX:XX:XX` | 192.168.8.11  | eth0       | Staging node      |
+| MiniPC (Celeron)  | homelab-mgmt    | `XX:XX:XX:XX:XX:XX` | 192.168.8.12  | eth0       | Management/CI-CD  |
 | Raspberry Pi 4 #1 | pi4-node1       | `XX:XX:XX:XX:XX:XX` | 192.168.8.20  | eth0       | Critical services |
 | Raspberry Pi 4 #2 | pi4-node2       | `XX:XX:XX:XX:XX:XX` | 192.168.8.21  | eth0       | Critical services |
 | Raspberry Pi 3B+  | pi3-utils       | `XX:XX:XX:XX:XX:XX` | 192.168.8.22  | eth0       | Utilities         |
@@ -55,6 +56,7 @@ When local DNS server is configured (Pi-hole or other), add these records:
 | --------------- | ------------ | --------------------- |
 | homelab-main    | 192.168.8.10 | homelab-main.local    |
 | homelab-staging | 192.168.8.11 | homelab-staging.local |
+| homelab-mgmt    | 192.168.8.12 | homelab-mgmt.local    |
 | pi4-node1       | 192.168.8.20 | pi4-node1.local       |
 | pi4-node2       | 192.168.8.21 | pi4-node2.local       |
 | pi3-utils       | 192.168.8.22 | pi3-utils.local       |
@@ -70,10 +72,10 @@ Netgear GS308EP port assignments:
 | 1    | Uplink to router  | Off        | 1000 Mbps | WAN connection   |
 | 2    | ThinkPad T440     | Off        | 1000 Mbps | Main server      |
 | 3    | Asus X550C        | Off        | 1000 Mbps | Staging          |
-| 4    | Raspberry Pi 4 #1 | On (PoE+)  | 1000 Mbps | Via Evodata hat  |
-| 5    | Raspberry Pi 4 #2 | On (PoE+)  | 1000 Mbps | Via Evodata hat  |
-| 6    | Raspberry Pi 3B+  | On (PoE)   | 100 Mbps  | Via Evodata hat  |
-| 7    | Available         | Off        | -         | Future expansion |
+| 4    | MiniPC (Celeron)  | Off        | 1000 Mbps | Management node  |
+| 5    | Raspberry Pi 4 #1 | On (PoE+)  | 1000 Mbps | Via Evodata hat  |
+| 6    | Raspberry Pi 4 #2 | On (PoE+)  | 1000 Mbps | Via Evodata hat  |
+| 7    | Raspberry Pi 3B+  | On (PoE)   | 100 Mbps  | Via Evodata hat  |
 | 8    | Available         | Off        | -         | Future expansion |
 
 ---

@@ -10,15 +10,15 @@ This document describes the operating systems, tools, and services planned for t
 
 | Host                | OS              | Version    | Role                                                   |
 | ------------------- | --------------- | ---------- | ------------------------------------------------------ |
-| ThinkPad T440       | Rocky Linux     | 9.x        | Main server — Ansible control, Docker host, Jenkins CI |
-| Asus X550C          | Rocky Linux     | 9.x        | Staging / reserve node                                 |
+| ThinkPad T440       | Ubuntu Server   | 24.04 LTS  | Main server — Ansible control, Docker host, Jenkins CI |
+| Asus X550C          | Ubuntu Server   | 24.04 LTS  | Staging / reserve node                                 |
 | Raspberry Pi 4 (x2) | Raspberry Pi OS | 64-bit     | Critical services: k3s nodes, VPN, monitoring          |
 | Raspberry Pi 3B+    | Raspberry Pi OS | 64-bit     | Low-priority utilities: Pi-hole, experiments           |
 | Workstation         | Ubuntu / Debian | Latest LTS | Development and testing                                |
 
 Notes:
 
-- Rocky Linux chosen for RHEL compatibility and stability
+- Ubuntu Server 24.04 LTS chosen for long-term support, Debian compatibility, and wide community adoption
 - Raspberry Pi OS provides good ARM support and community documentation
 - All systems use 64-bit where possible
 
@@ -35,16 +35,13 @@ Notes:
 ### Containers and Orchestration
 
 - **Docker**: Initial container runtime for single-host deployments
-- **Docker Compose**: Multi-container application definitions
-- **Kubernetes** (planned Phase 5): Orchestration strategy to be determined
-  - Options under consideration:
-    - Single k3s cluster spanning both Pi4s and x86 nodes (mixed architecture)
-    - Separate k3s cluster on Pi4s (ARM) + bare-metal services on laptops
-    - k3s on Pi4s only, laptops remain Docker-based for heavier workloads
-  - Decision factors: resource constraints, learning goals, workload requirements
-  - Pi4s have limited RAM (4GB each) but persistent SSD storage
-  - Laptops have more compute (8-12GB RAM) but may serve better as dedicated CI/monitoring hosts
-  - Initial direction: Start with k3s on Pi4s as a learning cluster, run production-like services on laptops via Docker/Compose
+- **Docker Compose**: Multi-container application definitions and Pi-hole deployment
+- **k3s Kubernetes**: 2-node cluster on Pi4s for monitoring stack and learning
+  - **Architecture**: Pi4 node 1 (server) + Pi4 node 2 (agent)
+  - **Deployment**: Prometheus, Grafana, and Loki run as k3s pods
+  - **Design rationale**: Keep cluster simple and focused on observability
+  - **Disabled components**: Traefik (use NodePort), ServiceLB (not needed)
+  - **Heavy workloads**: Jenkins, databases, build agents remain on x86 Docker hosts
 
 ### CI/CD
 
@@ -55,19 +52,29 @@ Notes:
 
 ### Networking and Security
 
-- **Nginx**: Reverse proxy and TLS termination
+- **Nginx**: Reverse proxy and TLS termination (planned)
   - HTTP/HTTPS routing for containerized services
   - Let's Encrypt integration for SSL certificates
   - Load balancing for multi-instance deployments
-- **WireGuard**: VPN server (hosted on Pi4 for remote access)
-- **Pi-hole**: DNS filtering and ad blocking (on Pi3)
-- **Firewall**: firewalld on Rocky Linux, iptables on Pis
+- **WireGuard**: VPN server on GL.iNet router for remote access
+- **Pi-hole**: DNS filtering and ad blocking via Docker on Pi3
+- **Firewall**: UFW on Ubuntu Server, UFW on Raspberry Pis
 
-### Monitoring and Observability (planned Phase 4)
+### Monitoring and Observability
 
-- **Prometheus**: Metrics collection from exporters on all hosts
-- **Grafana**: Dashboards and visualization
-- **Node Exporter**: Host-level metrics
+- **Prometheus**: Metrics collection deployed on k3s cluster
+  - Scrapes node exporters from all hosts (Pis + laptops)
+  - 7-day retention, 15-second scrape interval
+  - NodePort access: http://192.168.8.20:30090
+- **Grafana**: Dashboards and visualization on k3s
+  - Pre-configured with Prometheus and Loki data sources
+  - NodePort access: http://192.168.8.20:30030
+  - Default credentials: admin/admin
+- **Loki**: Log aggregation on k3s cluster
+  - Lightweight alternative to ELK stack
+  - Integrated with Grafana for unified logs + metrics
+- **Node Exporter**: Deployed on all hosts via systemd service
+  - Exposes host metrics on port 9100
 
 ### Infrastructure as Code (planned Phase 5)
 
@@ -79,23 +86,34 @@ Notes:
 
 ## Service Deployment Path
 
-1. Docker Compose on main server (Phase 3)
+1. **k3s Cluster on Pi4s** (Completed)
 
-   - First app: Vite + Three.js static site
-   - Jenkins, Nginx, simple APIs
-   - All services on ThinkPad T440 initially
+   - 2-node cluster (pi4-node1 as server, pi4-node2 as agent)
+   - Running monitoring stack: Prometheus, Grafana, Loki
+   - Node exporters on all hosts for metrics collection
+   - Simple architecture: no Traefik, using NodePort services
 
-2. Kubernetes exploration (Phase 5)
+2. **Pi-hole on Pi3** (Completed)
 
-   - Experiment with k3s on Pi4 cluster for learning
-   - Deploy non-critical or stateless workloads to k3s
-   - Keep resource-intensive services (Jenkins, databases, build agents) on x86 Docker hosts
-   - Evaluate mixed-architecture cluster vs. separate ARM/x86 deployment models
+   - DNS filtering via Docker Compose
+   - Web interface on port 8080
+   - Network-wide ad blocking (after router DNS config)
 
-3. Cloud migration (Phase 6)
-   - Use Terraform and Kubernetes manifests to deploy workloads to cloud
-   - Maintain on-prem for experimentation, development, and latency-sensitive services
-   - Cloud-first for scalability experiments and public-facing production apps
+3. **Docker Compose on main server** (Completed)
+
+   - Jenkins CI/CD server (running on port 9080)
+   - Portfolio application (running on ports 80/443)
+   - Resource-intensive workloads
+
+4. **Expand k3s workloads** (Future)
+
+   - Deploy lightweight stateless apps to Pi4 cluster
+   - Experiment with persistent volumes
+   - Learn Kubernetes patterns (deployments, services, ingress)
+
+5. **Cloud migration** (Future)
+   - Use Terraform and Kubernetes manifests for cloud deployments
+   - Maintain homelab for experimentation and local development
 
 ---
 

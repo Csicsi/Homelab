@@ -266,27 +266,55 @@ ansible-playbook -i inventory.yml playbooks/setup_pis.yml --tags firewall --ask-
 
 ## Homelab Main Server Playbooks
 
-### `setup_main_server.yml`
+### `setup_servers.yml`
 
-**Target**: `homelab-main` (ThinkPad T440)
+**Target**: `servers` (homelab-main, homelab-staging)
 
-**Purpose**: Initial setup of main server with Docker, firewall, and laptop-specific configs
+**Purpose**: Initial setup of x86 servers with Docker, firewall, and laptop-specific configs
 
 **What it does**:
 
-- Updates all system packages
-- Installs Docker and Docker Compose
+- Updates all system packages (apt-based)
+- Installs essential packages (vim, git, curl, etc.)
+- Adds Docker repository and installs Docker + Docker Compose
 - Configures laptop to stay running with lid closed
-- Sets up SSH authorized keys
-- Configures firewall for Docker and SSH
+- Sets up UFW firewall (SSH, HTTP, HTTPS)
+- Installs and enables Nginx reverse proxy
+- Adds user to docker group for non-root Docker access
+
+**Prerequisites**:
+
+- Ubuntu Server 24.04 LTS installed on target hosts
+- SSH keys deployed to all servers:
+  - `ssh-copy-id -i ~/.ssh/id_ed25519.pub dcsicsak@192.168.8.10`
+  - `ssh-copy-id -i ~/.ssh/id_ed25519.pub dcsicsak@192.168.8.11`
+- Internet connection for package downloads
 
 **Usage**:
 
 ```bash
-ansible-playbook -i inventory.yml playbooks/setup_main_server.yml --ask-become-pass
+# Test connectivity
+ansible -i inventory.yml servers -m ping
+
+# Run complete setup on all servers
+ansible-playbook -i inventory.yml playbooks/setup_servers.yml --ask-become-pass
+
+# Run on specific server only
+ansible-playbook -i inventory.yml playbooks/setup_servers.yml --ask-become-pass --limit homelab-staging
+
+# Run specific sections
+ansible-playbook -i inventory.yml playbooks/setup_servers.yml --tags docker --ask-become-pass
+ansible-playbook -i inventory.yml playbooks/setup_servers.yml --tags firewall --ask-become-pass
 ```
 
-**Tags**: `update`, `packages`, `docker`, `lid`, `ssh`, `firewall`
+**Tags**: `update`, `packages`, `docker`, `nginx`, `firewall`, `lid`
+
+**Post-setup**:
+
+- Log out and back in for docker group changes: `newgrp docker`
+- Verify Docker: `docker ps`
+- Check firewall status: `sudo ufw status`
+- Test Nginx: `curl http://localhost`
 
 ---
 
@@ -320,9 +348,217 @@ ansible-playbook -i inventory.yml playbooks/setup_main_server_jenkins.yml --ask-
 
 **Notes**:
 
+- Retrieve initial admin password: `sudo cat /srv/jenkins/secrets/initialAdminPassword`
+- Jenkins UI accessible: `http://192.168.8.10:9080`
+- Next step: Configure Jenkins for GitHub integration
+
+---
+
+### `setup_management_node.yml` ⭐
+
+**Target**: `homelab-mgmt` (MiniPC at 192.168.8.12)
+
+**Purpose**: Complete management node setup with CI/CD, container registry, and orchestration tools
+
+**What it does**:
+
+- Installs Docker and Docker Compose
+- Deploys **Jenkins** (CI/CD server) with Docker-in-Docker support
+  - Exposed on ports 8080 (web) and 50000 (agent communication)
+  - Mounts Docker socket for pipeline builds
+  - Persistent storage in `/srv/jenkins`
+- Deploys **Portainer** (Docker management UI)
+  - Exposed on ports 9000 (HTTP) and 9443 (HTTPS)
+  - Persistent storage in `/srv/portainer`
+- Deploys **Docker Registry** (private container registry)
+  - Exposed on port 5000
+  - Persistent storage in `/srv/registry`
+- Configures UFW firewall for all service ports
+- Displays initial credentials and access URLs
+
+**Prerequisites**:
+
+- Ubuntu Server 24.04 LTS installed on MiniPC
+- SSH keys deployed: `ssh-copy-id -i ~/.ssh/id_ed25519.pub dcsicsak@192.168.8.12`
+- Static DHCP reservation for 192.168.8.12 configured on router
+- Ansible `community.docker` collection installed on control node
+- Internet connection for package/image downloads
+
+**Usage**:
+
+```bash
+# Test connectivity
+ansible -i inventory.yml homelab-mgmt -m ping
+
+# Run complete setup
+ansible-playbook -i inventory.yml playbooks/setup_management_node.yml --ask-become-pass
+
+# Run specific services only
+ansible-playbook -i inventory.yml playbooks/setup_management_node.yml --tags jenkins --ask-become-pass
+ansible-playbook -i inventory.yml playbooks/setup_management_node.yml --tags portainer --ask-become-pass
+ansible-playbook -i inventory.yml playbooks/setup_management_node.yml --tags registry --ask-become-pass
+```
+
+**Tags**: `packages`, `docker`, `jenkins`, `portainer`, `registry`, `firewall`
+
+**Post-setup**:
+**Post-setup**:
+
+- **Jenkins:** Access at `http://192.168.8.12:8080/jenkins` (initial password displayed in playbook output)
+- **Portainer:** Create admin password at `https://192.168.8.12:9443`
+- **Docker Registry:** Use with `docker tag myimage 192.168.8.12:5000/myimage && docker push 192.168.8.12:5000/myimage`
+- Log out and back in for docker group changes: `newgrp docker`
+
+**Service Ports**:
+
+| Service         | Port(s)     | Purpose                  |
+| --------------- | ----------- | ------------------------ |
+| Jenkins         | 8080, 50000 | CI/CD web + agent comm   |
+| Portainer       | 9000, 9443  | Container management     |
+| Docker Registry | 5000        | Private image repository |
+
+**Notes**:
+
 - Jenkins web UI will be available at `http://<server-ip>:9080`
 - Persistent data stored in `/srv/jenkins` on host
 - For initial admin password, check `/srv/jenkins/secrets/initialAdminPassword` inside the container
+
+---
+
+## Kubernetes and Monitoring Playbooks
+
+### `setup_k3s_cluster.yml`
+
+**Target**: `pis` group (specifically pi4-node1 and pi4-node2)
+
+**Purpose**: Install and configure k3s Kubernetes cluster on Pi4 nodes
+
+**What it does**:
+
+- Installs k3s server on pi4-node1 (192.168.8.20)
+- Installs k3s agent on pi4-node2 (192.168.8.21)
+- Disables Traefik and ServiceLB (not needed for simple setup)
+- Configures kubeconfig for cluster access
+- Verifies cluster nodes are ready
+
+**Prerequisites**:
+
+- Pis configured with `setup_pis.yml`
+- Memory cgroups enabled in `/boot/firmware/cmdline.txt`
+- Firewall allows k3s ports (6443, 10250)
+
+**Usage**:
+
+```bash
+# Install k3s cluster
+ansible-playbook -i inventory.yml playbooks/setup_k3s_cluster.yml --ask-become-pass
+
+# Verify cluster from pi4-node1
+ssh dcsicsak@192.168.8.20
+kubectl get nodes
+```
+
+**Tags**: `install`, `token`, `kubeconfig`, `verify`
+
+**Post-setup**:
+
+- Access cluster: `ssh dcsicsak@192.168.8.20`, then use `kubectl`
+- Node token saved to `/tmp/k3s-node-token` on control machine
+- Kubeconfig at `~/.kube/config` on pi4-node1
+
+---
+
+### `setup_monitoring_stack.yml`
+
+**Target**: `pi4-node1` (for k3s deployments) and `all` (for node exporters)
+
+**Purpose**: Deploy complete monitoring stack (Prometheus, Grafana, Loki) to k3s cluster
+
+**What it does**:
+
+- Deploys Prometheus to k3s with scrape configs for all hosts
+- Deploys Grafana with admin/admin credentials
+- Deploys Loki for log aggregation
+- Installs node_exporter on all hosts (systemd service)
+- Configures firewalls for metrics collection (port 9100)
+- Uses NodePort services for external access
+
+**Prerequisites**:
+
+- k3s cluster running (`setup_k3s_cluster.yml`)
+- Docker installed on all hosts
+- Internet access for downloading components
+
+**Usage**:
+
+```bash
+# Deploy complete monitoring stack
+ansible-playbook -i inventory.yml playbooks/setup_monitoring_stack.yml --ask-become-pass
+```
+
+**Tags**: `namespace`, `manifests`, `prometheus`, `loki`, `grafana`, `verify`, `node-exporter`
+
+**Access URLs**:
+
+- Prometheus: http://192.168.8.20:30090
+- Grafana: http://192.168.8.20:30030 (admin/admin)
+
+**Post-setup**:
+
+1. Open Grafana in browser
+2. Add Prometheus data source: `http://prometheus.monitoring.svc.cluster.local:9090`
+3. Add Loki data source: `http://loki.monitoring.svc.cluster.local:3100`
+4. Import dashboards (Node Exporter Full, Kubernetes Cluster Monitoring)
+
+---
+
+### `setup_pihole.yml`
+
+**Target**: `pi3-utils` (192.168.8.22)
+
+**Purpose**: Deploy Pi-hole DNS ad blocker via Docker Compose on Pi3
+
+**What it does**:
+
+- Creates Pi-hole directories (`/opt/pihole`)
+- Deploys Pi-hole container via docker-compose
+- Stops systemd-resolved (conflicts with Pi-hole DNS)
+- Configures static resolv.conf
+- Opens firewall ports (53 for DNS, 8080 for web)
+
+**Prerequisites**:
+
+- Docker and Docker Compose installed (`setup_pis.yml`)
+- Pi3 accessible via SSH
+- Edit playbook vars to change default password
+
+**Usage**:
+
+```bash
+# Edit password in playbook first!
+vim ansible/playbooks/setup_pihole.yml  # Change pihole_webpassword
+
+# Deploy Pi-hole
+ansible-playbook -i inventory.yml playbooks/setup_pihole.yml --ask-become-pass
+```
+
+**Tags**: `setup`, `dns`, `start`, `firewall`, `verify`
+
+**Access**:
+
+- Web interface: http://192.168.8.22:8080/admin
+- Default password: `admin` (change this!)
+
+**Post-setup**:
+
+Configure GL.iNet router to use Pi-hole as DNS:
+
+```bash
+# On router via Ansible or manually
+uci set dhcp.lan.dhcp_option='6,192.168.8.22'
+uci commit dhcp
+/etc/init.d/dnsmasq restart
+```
 
 ---
 

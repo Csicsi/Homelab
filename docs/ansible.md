@@ -216,12 +216,13 @@ See `ansible/playbooks/README.md` for detailed documentation of each playbook.
 - Adds static DHCP reservations for all hosts
 - Requires `vars/router_dhcp.yml` with real MAC addresses
 
-**`setup_main_server.yml`**
+**`setup_servers.yml`**
 
 - System updates and package installation
 - Docker and Docker Compose setup
 - Laptop lid-close configuration
 - Firewall setup for Docker and SSH
+- Targets all x86 servers (main and staging)
 - Requires `--ask-become-pass`
 
 **`setup_glinet_wireguard.yml`**
@@ -259,24 +260,27 @@ See `ansible/playbooks/README.md` for detailed documentation of each playbook.
     cmd: uci set dhcp.lan.start='100'
 ```
 
-**Rocky Linux packages** - Use `dnf` not `apt`:
+**Ubuntu Server packages** - Use `apt` not `dnf`:
 
 ```yaml
 - name: Install packages
-  ansible.builtin.dnf:
-    name: [vim, git, htop]
+  ansible.builtin.apt:
+    name:
+      - vim
+      - git
+      - htop
     state: present
+    update_cache: true
 ```
 
-**Firewall rules** - Always use `permanent: true` and `immediate: true`:
+**Firewall rules** - Use UFW for Ubuntu:
 
 ```yaml
 - name: Allow SSH
-  ansible.posix.firewalld:
-    service: ssh
-    permanent: true
-    immediate: true
-    state: enabled
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
 ```
 
 ---

@@ -2,10 +2,10 @@
 
 ## Core Systems
 
-| Device        | CPU                           | RAM   | Storage  | OS          | Role                                              |
-| ------------- | ----------------------------- | ----- | -------- | ----------- | ------------------------------------------------- |
-| ThinkPad T440 | Intel i5-4300U                | 8 GB  | NVMe/SSD | Rocky Linux | Main server — Ansible control, Docker, Jenkins CI |
-| Asus X550C    | Intel i3-3217U + GeForce 720M | 12 GB | SSD      | Rocky Linux | Staging / reserve node                            |
+| Device        | CPU                           | RAM   | Storage  | OS                  | Role                                              |
+| ------------- | ----------------------------- | ----- | -------- | ------------------- | ------------------------------------------------- |
+| ThinkPad T440 | Intel i5-4300U                | 8 GB  | NVMe/SSD | Ubuntu Server 24.04 | Main server — Ansible control, Docker, Jenkins CI |
+| Asus X550C    | Intel i3-3217U + GeForce 720M | 12 GB | SSD      | Ubuntu Server 24.04 | Staging / reserve node                            |
 
 ---
 
