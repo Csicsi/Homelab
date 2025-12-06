@@ -1,0 +1,111 @@
+---
+- name: Setup Pi-hole on Pi3
+  hosts: pi3-utils
+  become: true
+
+  vars:
+    pihole_webpassword: "admin"
+    pihole_timezone: "Europe/Vienna"
+    pihole_dns1: "1.1.1.1"
+    pihole_dns2: "1.0.0.1"
+
+  tasks:
+    - name: Create pihole directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - /opt/pihole
+        - /opt/pihole/etc-pihole
+        - /opt/pihole/etc-dnsmasq.d
+      tags: setup
+
+    - name: Create docker-compose.yml for Pi-hole
+      ansible.builtin.copy:
+        content: |
+          services:
+            pihole:
+              container_name: pihole
+              image: pihole/pihole:latest
+              ports:
+                - "53:53/tcp"
+                - "53:53/udp"
+                - "8080:80/tcp"
+              environment:
+                TZ: "{{ pihole_timezone }}"
+                WEBPASSWORD: "{{ pihole_webpassword }}"
+                PIHOLE_DNS_: "{{ pihole_dns1 }};{{ pihole_dns2 }}"
+                DNSMASQ_LISTENING: "all"
+              volumes:
+                - /opt/pihole/etc-pihole:/etc/pihole
+                - /opt/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+              restart: unless-stopped
+        dest: /opt/pihole/docker-compose.yml
+        mode: "0644"
+      tags: setup
+
+    - name: Check if systemd-resolved exists
+      ansible.builtin.command: systemctl status systemd-resolved
+      register: systemd_resolved_check
+      failed_when: false
+      changed_when: false
+      tags: dns
+
+    - name: Stop systemd-resolved (conflicts with Pi-hole DNS)
+      ansible.builtin.systemd:
+        name: systemd-resolved
+        state: stopped
+        enabled: false
+      when: systemd_resolved_check.rc == 0
+      tags: dns
+
+    - name: Create static resolv.conf
+      ansible.builtin.copy:
+        content: |
+          nameserver 1.1.1.1
+          nameserver 1.0.0.1
+        dest: /etc/resolv.conf
+        mode: "0644"
+      tags: dns
+
+    - name: Start Pi-hole container
+      ansible.builtin.shell:
+        cmd: docker compose up -d
+        chdir: /opt/pihole
+      tags: start
+
+    - name: Wait for Pi-hole to be ready
+      ansible.builtin.wait_for:
+        port: 8080
+        delay: 10
+        timeout: 120
+      tags: verify
+
+    - name: Open Pi-hole web port in firewall
+      community.general.ufw:
+        rule: allow
+        port: "8080"
+        proto: tcp
+      tags: firewall
+
+    - name: Open DNS port in firewall
+      community.general.ufw:
+        rule: allow
+        port: "53"
+      tags: firewall
+
+    - name: Display Pi-hole access information
+      ansible.builtin.debug:
+        msg:
+          - "Pi-hole deployed successfully!"
+          - "Web interface: http://192.168.8.22:8080/admin"
+          - "Password: {{ pihole_webpassword }}"
+          - ""
+          - "To use Pi-hole as your DNS server:"
+          - "1. Set DNS on router to 192.168.8.22"
+          - "2. Or configure each device to use 192.168.8.22 as DNS"
+          - ""
+          - "Note: You'll need to configure your router (GL.iNet) to use this Pi-hole"
+          - "as the DNS server for DHCP clients."
+      tags: verify
