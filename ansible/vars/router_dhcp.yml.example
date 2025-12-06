@@ -15,6 +15,10 @@ dhcp_reservations:
     mac: "XX:XX:XX:XX:XX:XX"  # Run: ip link show on Asus
     ip: "192.168.8.11"
   
+  - name: "homelab-mgmt"
+    mac: "XX:XX:XX:XX:XX:XX"  # Run: ip link show on MiniPC
+    ip: "192.168.8.12"
+  
   - name: "pi4-node1"
     mac: "XX:XX:XX:XX:XX:XX"  # Run: cat /sys/class/net/eth0/address
     ip: "192.168.8.20"

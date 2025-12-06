@@ -1,36 +1,37 @@
 ---
-- name: Setup Main Server (ThinkPad T440)
-  hosts: homelab-main
+- name: Setup Servers (x86 Laptops)
+  hosts: servers
   become: true
 
   tasks:
-    - name: Update all packages
-      ansible.builtin.dnf:
-        name: "*"
-        state: latest
+    - name: Update apt cache
+      ansible.builtin.apt:
         update_cache: true
+        cache_valid_time: 3600
       tags: update
 
-    - name: Install EPEL repository
-      ansible.builtin.dnf:
-        name: epel-release
-        state: present
-      tags: packages
+    - name: Upgrade all packages
+      ansible.builtin.apt:
+        upgrade: dist
+      tags: update
 
     - name: Install essential packages
-      ansible.builtin.dnf:
+      ansible.builtin.apt:
         name:
           - vim
           - git
           - curl
           - wget
           - net-tools
-          - firewalld
+          - ufw
           - htop
           - python3-requests
           - openssl
           - unzip
           - tar
+          - ca-certificates
+          - gnupg
+          - lsb-release
         state: present
       tags: packages
 
@@ -38,14 +39,20 @@
     # Docker
     # ---------------------------------------------------------------
 
+    - name: Add Docker GPG key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+      tags: docker
+
     - name: Add Docker repository
-      ansible.builtin.command:
-        cmd: dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-        creates: /etc/yum.repos.d/docker-ce.repo
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
       tags: docker
 
     - name: Install Docker and Docker Compose
-      ansible.builtin.dnf:
+      ansible.builtin.apt:
         name:
           - docker-ce
           - docker-ce-cli
@@ -53,6 +60,7 @@
           - docker-buildx-plugin
           - docker-compose-plugin
         state: present
+        update_cache: true
       tags: docker
 
     - name: Enable and start Docker
@@ -79,50 +87,31 @@
       tags: docker
 
     # ---------------------------------------------------------------
-    # Optional but recommended: Nginx reverse proxy
-    # ---------------------------------------------------------------
-    - name: Install Nginx
-      ansible.builtin.dnf:
-        name: nginx
-        state: present
-      tags: nginx
-
-    - name: Enable and start Nginx
-      ansible.builtin.systemd:
-        name: nginx
-        state: started
-        enabled: true
-      tags: nginx
-
-    # ---------------------------------------------------------------
     # Firewall
     # ---------------------------------------------------------------
-    - name: Start and enable firewalld
-      ansible.builtin.systemd:
-        name: firewalld
-        state: started
-        enabled: true
+    - name: Enable UFW
+      community.general.ufw:
+        state: enabled
+      tags: firewall
+
+    - name: Set UFW default policies
+      community.general.ufw:
+        direction: "{{ item.direction }}"
+        policy: "{{ item.policy }}"
+      loop:
+        - { direction: "incoming", policy: "deny" }
+        - { direction: "outgoing", policy: "allow" }
       tags: firewall
 
     - name: Allow standard services
-      ansible.posix.firewalld:
-        service: "{{ item }}"
-        permanent: true
-        state: enabled
-        immediate: true
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
       loop:
-        - ssh
-        - http
-        - https
-      tags: firewall
-
-    - name: Allow Docker networks
-      ansible.posix.firewalld:
-        zone: trusted
-        interface: docker0
-        permanent: true
-        state: enabled
-        immediate: true
+        - "22" # SSH
+        - "80" # HTTP
+        - "443" # HTTPS
       tags: firewall
 
     # ---------------------------------------------------------------

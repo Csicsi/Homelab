@@ -23,11 +23,16 @@ This homelab serves as a practical platform for learning and demonstrating DevOp
 
 ### Hardware
 
-**Compute:**
+**Compute (x86 Architecture):**
 
-- 2x x86 servers (ThinkPad T440, Asus X550C) running Rocky Linux
-- 2x Raspberry Pi 4 (4GB RAM) with M.2 SSD storage via Geekworm X862 expansion boards
-- 1x Raspberry Pi 3B+ for lightweight utilities
+- **homelab-main** (192.168.8.10) - ThinkPad T440 - **OFFLINE** pending OS reinstall, future production server
+- **homelab-staging** (192.168.8.11) - Asus X550C - **ACTIVE** temporarily handling production traffic
+- **homelab-mgmt** (192.168.8.12) - MiniPC (Celeron, 8GB RAM) - **PLANNED** management/CI-CD node
+
+**Compute (ARM Architecture):**
+
+- 2x Raspberry Pi 4 (4GB RAM) with M.2 SSD storage via Geekworm X862 expansion boards - **ONLINE** running observability services
+- 1x Raspberry Pi 3B+ for lightweight utilities - **ONLINE** running Homer dashboard and Pi-hole
 
 **Networking:**
 
@@ -44,14 +49,15 @@ This homelab serves as a practical platform for learning and demonstrating DevOp
 
 **Core Technologies:**
 
-- **OS:** Rocky Linux 10 (servers), Raspberry Pi OS 64-bit (ARM nodes)
+- **OS:** Ubuntu Server 24.04 LTS (x86 hosts), Raspberry Pi OS 64-bit (ARM nodes)
 - **Automation:** Ansible for configuration management and provisioning
 - **Containers:** Docker and Docker Compose
-- **CI/CD:** Jenkins with GitHub webhook integration
-- **Reverse Proxy:** Nginx with Let's Encrypt SSL
-- **Monitoring:** Prometheus + Grafana (planned)
-- **VPN:** WireGuard for secure remote access
-- **DNS:** Pi-hole for network-wide ad blocking
+- **CI/CD:** Jenkins (planned for management node)
+- **Reverse Proxy:** Nginx (planned)
+- **Monitoring:** Prometheus + Grafana (running on Pis)
+- **VPN:** WireGuard server on router
+- **DNS/Ad-Blocking:** Pi-hole (running on Pis)
+- **Service Dashboard:** Homer (running on Pis)
 
 **Infrastructure as Code:**
 
@@ -62,6 +68,39 @@ This homelab serves as a practical platform for learning and demonstrating DevOp
 ---
 
 ## Architecture Decisions
+
+### Three-Tier Server Design
+
+The x86 infrastructure follows a three-tier separation of concerns:
+
+**Management Node (homelab-mgmt @ .12):**
+
+- Dedicated to DevOps tooling and infrastructure management
+- **Jenkins** for CI/CD pipelines with Docker-in-Docker
+- **Portainer** for container orchestration UI
+- **Docker Registry** for private image storage
+- Isolated from production workloads to prevent build jobs from impacting services
+
+**Staging Node (homelab-staging @ .11):**
+
+- Test deployment target for CI/CD pipelines
+- Mirror of production environment for pre-release testing
+- Currently serving production traffic while main is offline
+- Will return to staging role when production is restored
+
+**Production Node (homelab-main @ .10):**
+
+- Currently offline pending OS reinstall
+- Future home for stable production workloads
+- Resource-intensive applications (databases, app servers)
+- Public-facing services with reverse proxy
+
+**Current Status:**
+
+- **Pis:** Operational - Running Grafana, Prometheus, Homer, Pi-hole
+- **Staging:** Active - Handling production traffic temporarily
+- **Management:** Planned - MiniPC awaiting setup
+- **Main:** Offline - Pending OS reinstall
 
 ### Kubernetes Strategy
 
@@ -83,26 +122,29 @@ The project will introduce Kubernetes through k3s (lightweight k8s) on the Raspb
 
 ## Project Phases
 
-### Phase 1: Foundation (Current)
+### Phase 1: Foundation ✅ Complete
 
 - Hardware assembly and network connectivity
 - Operating system installation and baseline configuration
 - Static IP assignment and documentation
 
-### Phase 2: Automation
+### Phase 2: Automation ✅ Complete
 
 - Ansible control node setup
 - SSH key-based authentication across all hosts
 - Base playbooks: system updates, user management, Docker installation
+- Router automation with OpenWrt/UCI
 
-### Phase 3: Core Services
+### Phase 3: Core Services 🔄 In Progress
 
-- Jenkins CI/CD server
-- Nginx reverse proxy with SSL
-- First containerized application deployment
-- GitHub webhook integration
+- WireGuard VPN server deployed on router
+- Pi-hole DNS filtering operational on Pis
+- Grafana/Prometheus monitoring stack running
+- Jenkins deployment on management node (next step)
+- Nginx reverse proxy with SSL (planned)
+- GitHub webhook integration (planned)
 
-### Phase 4: Observability
+### Phase 4: Observability 🔄 Partial
 
 - Prometheus metrics collection
 - Grafana dashboards
